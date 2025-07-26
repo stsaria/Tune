@@ -1,7 +1,3 @@
-# Idea project file/dir?
-*.iml
-.idea/
-
 # Env
 .venv/
 
