@@ -1,15 +1,18 @@
 from socket import socket as Socket
 from socket import AF_INET, SOCK_DGRAM
 
-from src.net import Response
+from src.model.NodeInfo import NodeInfo
+from src.net import Protocol
+from src.net.Me import Me
 from src.net.Presets import Presets
 
 
 class Node:
-    def __init__(self, ip:str, port:int, mySock:Socket):
-        self.ip:str = ip
-        self.port:int = port
-        self.mySock:Socket = mySock
+    def __init__(self, nodeInfo:NodeInfo, me:Me):
+        self._nodeInfo = nodeInfo
+        self._me:Me = me
+    def getNodeInfo(self) -> NodeInfo:
+        return self._nodeInfo
     def sendAndRecv(self, ):
     def getSock(self) -> Socket:
         sock:Socket = Socket(AF_INET, SOCK_DGRAM)
@@ -17,5 +20,5 @@ class Node:
         return sock
     def hello(self, myName:str, myPubKey:str) -> Response:
         sock:Socket = self.getSock()
-        sock.sendto(Presets.hello(myName, myPubKey), (self.ip, self.port))
+        sock.sendto(Presets.hello(myName, myPubKey), (self._nodeInfo.ip, self._nodeInfo.port))
         r,

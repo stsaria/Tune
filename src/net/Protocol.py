@@ -1,13 +1,19 @@
 from dataclasses import dataclass
 from enum import Enum
 
-class ResponseType(Enum):
+class CommuType(Enum):
     HELLO = 0
-    LOC_TIME_OUTED = 100
+    RESPONSE = 1
+
+
+
+    LOC_TIME_OUTED = 200
+
+    ERR_I_DONT_KNOW_YOUR_REQ_TYPE = 300
 
 @dataclass
 class Response:
-    respType:ResponseType
+    respType:CommuType
     mainData:dict
 
 @dataclass

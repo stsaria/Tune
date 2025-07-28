@@ -5,29 +5,31 @@ import uuid
 from socket import socket as Socket
 from socket import AF_INET, SOCK_DGRAM
 from threading import Lock
-from typing import Any
 
-from src.net.Response import Response
-from src.net.Presets import Presets
-from src.net.Response import ResponseIdentify, ResponseType
+from src.manager.Nodes import Nodes
+from src.model.NodeInfo import NodeInfo
+from src.net.Protocol import Response
+from src.net.Protocol import ResponseIdentify, CommuType
+from src.util import ed25519, nettet
+
 
 class Me:
     def __init__(self, ip:str="0.0.0.0", buffer:int=4096):
         self._ip:str = ip
 
-        self._port:int = self._selectPort()
+        self._port:int = nettet.selectPort(1024, 65535)
         self._sock:Socket = Socket(AF_INET, SOCK_DGRAM)
         self._sock.settimeout(4)
         self._sock.bind((self._ip, self._port))
 
         self._responses:dict[ResponseIdentify: Response] = {}
-        self._responsesLock = Lock()
-        self._buffer = buffer
-    def _selectPort(self) -> int:
-        while True:
-            port = random.randint(1024, 65535)
-            resp = Socket().connect_ex(("127.0.0.1", port))
-            if resp != 0: return port
+        self._responsesLock:Lock = Lock()
+
+        self._buffer:int = buffer
+
+        hexs = ed25519.generate()
+        self._pivKey:str = hexs[0]
+        self._pubKey:str = hexs[1]
     def _getResp(self, identify:ResponseIdentify) -> Response | None:
         with self._responsesLock:
             for k, v in self._responses:
@@ -49,20 +51,30 @@ class Me:
             if resp:
                 return resp
             time.sleep(0.03)
-        return Response(ResponseType.LOC_TIME_OUTED, {})
-    def _allotTaskFromReq(self, data:dict, address) -> None:
-        pass
-    def serve(self):
+        return Response(CommuType.LOC_TIME_OUTED, {})
+    def __hello(self, mData:dict, addr:tuple[str, int]) -> dict:
+        Nodes.registerNode(NodeInfo(addr[0], addr[1], mData["pub"]))
+        return {"pub":self._pubKey}
+    def _allotTaskFromReq(self, data:dict, addr:tuple[str, int]) -> None:
+        r:dict = {"t":CommuType.RESPONSE, "d":{}, "id":data["id"]}
+        match data["t"]:
+            case CommuType.HELLO:
+                r["d"] = self.__hello(data["d"], addr)
+            case _:
+                r["t"] = CommuType.ERR_I_DONT_KNOW_YOUR_REQ_TYPE
+        self._sock.sendto(json.dumps(r).encode("utf-8"), addr)
+    def serve(self) -> None:
         while True:
             try:
                 d, a = self._sock.recvfrom(self._buffer)
                 jS = d.decode("utf-8")
                 j:dict = json.loads(jS)
-                if [type(j.get("t")), type(j.get("d"))] != [int, dict]:
-                    continue
+                for k, v in {"t":int, "d":dict, "id":str}:
+                    if type(j[v]) != v:
+                        raise
                 if "id" in j.keys():
-                    resType:ResponseType | None = None
-                    for e in ResponseType:
+                    resType: CommuType | None = None
+                    for e in CommuType:
                         if e.value == j["t"]: resType = e
                     if not resType: continue
                     self._addResp(ResponseIdentify(a[0], a[1], j["id"]), Response(resType, j["d"]))
