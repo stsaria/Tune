@@ -1,3 +1,4 @@
+import random
 import sqlite3
 import time
 from sqlite3 import Connection, Cursor
@@ -58,3 +59,6 @@ class MyMessages:
                 continue
             messages.append(ReplyMessage(sqlMes[1], sqlMes[2], sqlMes[4], sqlMes[5]))
         return messages
+    @classmethod
+    def getRandomMessage(cls) -> Message | ReplyMessage:
+        return random.choice(cls.getRootMessages()+cls.getReplyMessages())

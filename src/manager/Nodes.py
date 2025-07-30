@@ -1,3 +1,4 @@
+import random
 from threading import RLock
 
 from src.model.NodeInfo import NodeInfo
@@ -55,5 +56,14 @@ class Nodes:
                     continue
                 return Node(nI, cls._me)
         return None
+    @classmethod
+    def getNodesFromRandom(cls, sampleK:int=1) -> list[Node]:
+        nodes = []
+        with cls._nodesLock:
+            nodeInfos = random.sample(cls._nodes, sampleK)
+        for nI in nodeInfos:
+            nodes.append(Node(nI, cls._me))
+        return nodes
 
-
+class TmpNodes(Nodes):
+    pass

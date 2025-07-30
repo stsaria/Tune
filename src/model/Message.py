@@ -1,13 +1,14 @@
 from dataclasses import dataclass
-
-from src.net.Node import Node
 from src.util import sha256
 
+Node = any
 
 @dataclass
 class Message:
+    from src.net.Node import Node
     content:str
     timestamp:int
+    author:Node=None
     def hash(self):
         return sha256.hash(f"{self.content}{self.timestamp}")
 
@@ -18,5 +19,9 @@ class ReplyMessage:
 
     fromNode:Node
     fromHash:str
+
+    fromSafe:bool=True
+
+    author:Node=None
     def hash(self):
         return sha256.hash(f"{self.content}{self.timestamp}{self.fromNode.getNodeInfo().getPubKey()}{self.fromHash}")
