@@ -6,5 +6,5 @@ class NodeInfo:
     port:int
     name:str
     pubKey:str
-    def getIpColonPort(self) -> str:
+    def getIPColonPort(self) -> str:
         return f"{self.ip}:{self.port}"

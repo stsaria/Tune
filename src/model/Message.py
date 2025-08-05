@@ -4,7 +4,7 @@ from src.util import sha256
 Node = any
 
 @dataclass
-class Message:
+class RootMessage:
     from src.net.Node import Node
     content:str
     timestamp:int
@@ -19,8 +19,6 @@ class ReplyMessage:
 
     fromNode:Node
     fromHash:str
-
-    fromSafe:bool=True
 
     author:Node=None
     def hash(self):

@@ -1,4 +1,10 @@
-from src.net.Me import Me
+import os
+import sys
 
-me = Me()
-me.serve()
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+os.makedirs("dbs", exist_ok=True)
+
+from src.gui.app import main
+
+if __name__ == "__main__":
+    main()

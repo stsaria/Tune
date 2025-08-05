@@ -1,17 +1,15 @@
+import base64
+import json
 import random
 from threading import RLock
 
 from src.model.NodeInfo import NodeInfo
-from src.net.Me import Me
 from src.net.Node import Node
 
 class Nodes:
     _me = None
     _nodes:list[NodeInfo] = []
     _nodesLock:RLock = RLock()
-    @classmethod
-    def setMe(cls, me:Me):
-        cls._me = me
     @classmethod
     def registerNode(cls, node:Node | NodeInfo) -> None:
         t = type(node)
@@ -22,48 +20,60 @@ class Nodes:
         else:
             return
         with cls._nodesLock:
-            if cls.getNodeFromIpAndPort(nodeInfo.ip, nodeInfo.port) or cls.getNodeFromPubKey(nodeInfo.pubKey):
+            if cls.getNodeFromIpAndPort(nodeInfo.ip, nodeInfo.port):
                 return
+            n = cls.getNodeFromPubKey(nodeInfo.pubKey)
+            if n:
+                cls._nodes.remove(n.getNodeInfo())
+            cls._nodes.append(nodeInfo)
+    @classmethod
+    def unregisterNode(cls, node:Node | NodeInfo):
+        t = type(node)
+        if t == Node:
+            nodeInfo = node.getNodeInfo()
+        elif t == NodeInfo:
+            nodeInfo = node
+        else:
+            return
+        with cls._nodesLock:
+            cls._nodes.remove(nodeInfo)
     @classmethod
     def getNodes(cls) -> list[Node]:
         nodes = []
         with cls._nodesLock:
             for nI in cls._nodes:
-                nodes.append(Node(nI, cls._me))
+                nodes.append(Node(nI))
         return nodes
     @classmethod
     def getNodesFromIp(cls, ip:str) -> list[Node]:
         nodes = []
-        with cls._nodesLock:
-            for nI in cls._nodes:
-                if nI.ip != ip:
-                    continue
-                nodes.append(Node(nI, cls._me))
+        for n in cls.getNodes():
+            nI = n.getNodeInfo()
+            if nI.ip != ip:
+                continue
+            nodes.append(Node(nI))
         return nodes
     @classmethod
     def getNodeFromIpAndPort(cls, ip:str, port:int) -> Node | None:
-        with cls._nodesLock:
-            for nI in cls._nodes:
-                if nI.ip != ip or nI.port != port:
-                    continue
-                return Node(nI, cls._me)
+        for n in cls.getNodes():
+            nI = n.getNodeInfo()
+            if nI.ip != ip or nI.port != port:
+                continue
+            return Node(nI)
         return None
     @classmethod
     def getNodeFromPubKey(cls, pubKey:str) -> Node | None:
-        with cls._nodesLock:
-            for nI in cls._nodes:
-                if nI.pubKey != pubKey:
-                    continue
-                return Node(nI, cls._me)
+        for n in cls.getNodes():
+            nI = n.getNodeInfo()
+            if nI.pubKey != pubKey:
+                continue
+            return Node(nI)
         return None
     @classmethod
-    def getNodesFromRandom(cls, sampleK:int=1) -> list[Node]:
-        nodes = []
-        with cls._nodesLock:
-            nodeInfos = random.sample(cls._nodes, sampleK)
-        for nI in nodeInfos:
-            nodes.append(Node(nI, cls._me))
-        return nodes
-
-class TmpNodes(Nodes):
-    pass
+    def getNodesFromRandom(cls, exclusionIp:str=None, sampleK:int=1) -> list[Node]:
+        nodes = cls.getNodes()
+        for n in nodes:
+            if n.getNodeInfo().ip == exclusionIp: nodes.remove(n)
+        if len(nodes) < sampleK:
+            return nodes
+        return random.sample(nodes, sampleK)

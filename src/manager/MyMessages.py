@@ -1,15 +1,16 @@
-import random
-import sqlite3
 import time
 from sqlite3 import Connection, Cursor
-from typing import Any
+from typing import Generator
 
-from src.model.Message import Message, ReplyMessage
+from src.defined import MSG_GENE, MSG
+from src.manager.Conn import Con
+from src.model.Message import RootMessage, ReplyMessage
 from src.util import sha256
 
+MSG_TUPLE = tuple[str, str, int, str, str, str]
 
 class MyMessages:
-    _con:Connection = sqlite3.connect("dbs/myMessages.db")
+    _con:Connection = Con.getCon()
     _cur:Cursor = _con.cursor()
     _cur.execute("""
         CREATE TABLE IF NOT EXISTS myMessages (
@@ -22,7 +23,7 @@ class MyMessages:
         )
     """)
     @classmethod
-    def postMessage(cls, message: Message | ReplyMessage) -> None:
+    def postMessage(cls, message:MSG) -> None:
         content = message.content
         ts = int(time.time())
         if type(message) == ReplyMessage:
@@ -40,25 +41,37 @@ class MyMessages:
                 (sha256.hash(f"{content}{ts}"), content, ts)
             )
     @classmethod
-    def _getSqlMessages(cls) -> list[Any]:
+    def _getLength(cls) -> int:
+        cls._cur.execute("SELECT COUNT(*) FROM myMessages")
+        return cls._cur.fetchone()[0]
+    @classmethod
+    def _getSqlMessages(cls) -> list:
         cls._cur.execute("SELECT * FROM myMessages")
         return cls._cur.fetchall()
     @classmethod
-    def getRootMessages(cls) -> list[Message]:
-        messages:list[Message] = []
-        for sqlMes in cls._getSqlMessages():
-            if sqlMes[3] and sqlMes[4] and sqlMes[5]:
-                continue
-            messages.append(Message(sqlMes[1], sqlMes[2]))
-        return messages
+    def _getSqlRandMessage(cls) -> MSG_TUPLE:
+        cls._cur.execute("SELECT * FROM myMessages ORDER BY RANDOM() LIMIT 1")
+        return cls._cur.fetchone()
     @classmethod
-    def getReplyMessages(cls) -> list[ReplyMessage]:
-        messages:list[ReplyMessage] = []
-        for sqlMes in cls._getSqlMessages():
-            if not (sqlMes[3] and sqlMes[4] and sqlMes[5]):
-                continue
-            messages.append(ReplyMessage(sqlMes[1], sqlMes[2], sqlMes[4], sqlMes[5]))
-        return messages
+    def _sqlMsgToMsg(cls, m:MSG_TUPLE) -> MSG:
+        if m[3] and m[4] and m[5]:
+            return ReplyMessage(m[1], m[2], m[3], m[4], m[5])
+        else:
+            return RootMessage(m[1], m[2])
     @classmethod
-    def getRandomMessage(cls) -> Message | ReplyMessage:
-        return random.choice(cls.getRootMessages()+cls.getReplyMessages())
+    def getMessages(cls) -> MSG_GENE:
+        for m in cls._getSqlMessages():
+            yield cls._sqlMsgToMsg(m)
+    @classmethod
+    def getRootMessages(cls) -> MSG_GENE:
+        for m in cls.getMessages():
+            if type(m) != ReplyMessage:
+                yield m
+    @classmethod
+    def getReplyMessages(cls) -> MSG_GENE:
+        for m in cls.getMessages():
+            if type(m) == ReplyMessage:
+                yield m
+    @classmethod
+    def getRandomMessage(cls) -> MSG:
+        return cls._sqlMsgToMsg(cls._getSqlRandMessage())
