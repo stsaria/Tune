@@ -32,10 +32,19 @@ class Me:
     _buffer:int = 1024*1024
 
     _name = ""
-
+    _maxNodes:int = 75
+    _maxNodesLock:Lock = Lock()
     hexs = ed25519.generate()
     _pivKey:str = hexs[0]
     _pubKey:str = hexs[1]
+    @classmethod
+    def setMaxNodes(cls, maxNodes:int) -> None:
+        with cls._maxNodesLock:
+            cls._maxNodes = maxNodes
+    @classmethod
+    def getMaxNodes(cls) -> int:
+        with cls._maxNodesLock:
+            return cls._maxNodes
     @classmethod
     def getIp(cls) -> str:
         return cls._ip
@@ -71,7 +80,7 @@ class Me:
         try:
             identify:ResponseIdentify = ResponseIdentify(toIp, toPort, uuid.uuid4().hex)
             data["id"] = identify.respId
-            if type(data["t"]) == CommuType: data["t"] = data["t"].value
+            if isinstance(data["t"], CommuType): data["t"] = data["t"].value
             cls._sock.sendto(json.dumps(data).encode("utf-8"), (toIp, toPort))
 
             st = time.time()
@@ -96,7 +105,7 @@ class Me:
         message = MyMessages.getRandomMessage()
         h = message.hash()
         m = {"c":message.content, "ts":message.timestamp, "hash":h, "sig": ed25519.sign(h, cls._pivKey)}
-        if type(message) == ReplyMessage:
+        if isinstance(message, ReplyMessage):
             fNI = message.fromNode.getNodeInfo()
             m["from"] = fNI.getIpColonPort()
             m["fromPub"] = fNI.pubKey
@@ -130,10 +139,14 @@ class Me:
         while True:
             try:
                 d, a = cls._sock.recvfrom(cls._buffer)
+                if Nodes.isBannedIp(a[0]):
+                    continue
+                elif Nodes.isMaxNodes() and not Nodes.getNodesFromIp(a[0]):
+                    continue
                 jS = d.decode("utf-8")
                 j:dict = json.loads(jS)
                 for k, v in {"t":int, "d":dict, "id":str}.items():
-                    if type(j[k]) != v:
+                    if not isinstance(j[k], v):
                         raise
                 cls._allotTaskFromReq(j, a)
             except:
@@ -152,7 +165,7 @@ class Me:
             m = aN.getMessage()
             if not m: continue
             Messages.addMessage(m)
-            if type(m) != ReplyMessage:
+            if not isinstance(m, ReplyMessage):
                 continue
             for rM in aN.getMessagesFromHashRecur(m.fromHash):
                 Messages.addMessage(rM)
@@ -204,3 +217,10 @@ class Me:
         if not ipColonPort:
             return None
         return nodeId.idFromNodeIAndP(ipColonPort)
+    @classmethod
+    def banNodeFromId(cls, id:str) -> None:
+        n = Nodes.getNodeFromId(id)
+        if not n:
+            return
+        Nodes.banIp(n.getNodeInfo().ip)
+        Messages.deleteMessagesFromIp(n.getNodeInfo().ip)

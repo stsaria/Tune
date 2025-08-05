@@ -26,7 +26,7 @@ class MyMessages:
     def postMessage(cls, message:MSG) -> None:
         content = message.content
         ts = int(time.time())
-        if type(message) == ReplyMessage:
+        if isinstance(message, ReplyMessage):
             fromNodeInfo = message.fromNode.getNodeInfo()
             fromIpColonPort = fromNodeInfo.getIpColonPort()
             fromPubKey = fromNodeInfo.pubKey
@@ -65,12 +65,12 @@ class MyMessages:
     @classmethod
     def getRootMessages(cls) -> MSG_GENE:
         for m in cls.getMessages():
-            if type(m) != ReplyMessage:
+            if not isinstance(m, ReplyMessage):
                 yield m
     @classmethod
     def getReplyMessages(cls) -> MSG_GENE:
         for m in cls.getMessages():
-            if type(m) == ReplyMessage:
+            if isinstance(m, ReplyMessage):
                 yield m
     @classmethod
     def getRandomMessage(cls) -> MSG:

@@ -10,7 +10,10 @@ class RootMessage:
     timestamp:int
     author:Node=None
     def hash(self):
-        return sha256.hash(f"{self.content}{self.timestamp}")
+        hS = f"{self.content}{self.timestamp}"
+        if self.author:
+            hS += self.author.getNodeInfo().getPubKey()
+        return sha256.hash(hS)
 
 @dataclass
 class ReplyMessage:
@@ -22,4 +25,7 @@ class ReplyMessage:
 
     author:Node=None
     def hash(self):
-        return sha256.hash(f"{self.content}{self.timestamp}{self.fromNode.getNodeInfo().getPubKey()}{self.fromHash}")
+        hS = f"{self.content}{self.timestamp}{self.fromHash}"
+        if self.author:
+            hS += self.author.getNodeInfo().getPubKey()
+        return sha256.hash(hS)

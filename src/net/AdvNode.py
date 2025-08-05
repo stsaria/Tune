@@ -83,7 +83,7 @@ class AdvNode:
         messages = [m]
         if not m:
             return []
-        elif type(m) == ReplyMessage:
+        elif isinstance(m, ReplyMessage):
             messages += m.fromNode.getMessagesFromHashRecur(m.hash())
         return messages
     def getMyIpColonPort(self) -> str | None:

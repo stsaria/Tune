@@ -24,10 +24,17 @@ class TuneGui:
     def __init__(self, root):
         self.root = root
         self.root.title("Tune - P2P Network Node Manager")
-        self.root.geometry("1000x800")
+        self.root.geometry("1200x800")
         
         # ノード名の設定
         self.nodeName = tk.StringVar(value="MyNode")
+        
+        # 最大ノード数設定
+        from src.manager.Nodes import Nodes
+        self.maxNodes = tk.IntVar(value=Nodes.getMaxNodes())
+        
+        # BANされたノードのリスト（GUI用、実際のBAN状態はNodesクラスで管理）
+        self.bannedNodes = set()
         
         # GUIの初期化
         self.setupGui()
@@ -49,38 +56,81 @@ class TuneGui:
         # グリッドの重み設定
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
-        mainFrame.columnconfigure(1, weight=1)
-        mainFrame.rowconfigure(5, weight=1)
+        mainFrame.columnconfigure(0, weight=1)
+        mainFrame.rowconfigure(1, weight=1)
+        
+        # 基本設定フレーム
+        self.setupBasicSettings(mainFrame)
+        
+        # タブコントロール
+        self.setupTabs(mainFrame)
+    
+    def setupBasicSettings(self, parent):
+        """基本設定（ノード名、最大ノード数、制御ボタン）"""
+        basicFrame = ttk.LabelFrame(parent, text="基本設定", padding="10")
+        basicFrame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
+        basicFrame.columnconfigure(1, weight=1)
         
         # ノード名設定
-        ttk.Label(mainFrame, text="ノード名:").grid(row=0, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(mainFrame, textvariable=self.nodeName, width=30).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5)
+        ttk.Label(basicFrame, text="ノード名:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        ttk.Entry(basicFrame, textvariable=self.nodeName, width=30).grid(row=0, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
+        
+        # 最大ノード数設定
+        ttk.Label(basicFrame, text="最大ノード数:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        maxNodesFrame = ttk.Frame(basicFrame)
+        maxNodesFrame.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=(10, 0))
+        
+        maxNodesSpinbox = ttk.Spinbox(maxNodesFrame, from_=1, to=100, textvariable=self.maxNodes, width=10)
+        maxNodesSpinbox.pack(side=tk.LEFT)
+        
+        ttk.Button(maxNodesFrame, text="設定", command=self.setMaxNodes).pack(side=tk.LEFT, padx=5)
         
         # 制御ボタン
-        controlFrame = ttk.Frame(mainFrame)
-        controlFrame.grid(row=1, column=0, columnspan=2, pady=10)
+        controlFrame = ttk.Frame(basicFrame)
+        controlFrame.grid(row=2, column=0, columnspan=2, pady=10)
         
         self.startButton = ttk.Button(controlFrame, text="ノード開始", command=self.startNode)
         self.startButton.pack(side=tk.LEFT, padx=5)
         
         self.stopButton = ttk.Button(controlFrame, text="ノード停止", command=self.stopNode, state=tk.DISABLED)
         self.stopButton.pack(side=tk.LEFT, padx=5)
+    
+    def setupTabs(self, parent):
+        """タブコントロールの設定"""
+        # ノートブック（タブ）を作成
+        self.notebook = ttk.Notebook(parent)
+        self.notebook.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # ノード管理タブ
+        self.setupNodeManagementTab()
+        
+        # メッセージタブ
+        self.setupMessageTab()
+        
+        # ログタブ
+        self.setupLogTab()
+    
+    def setupNodeManagementTab(self):
+        """ノード管理タブの設定"""
+        nodeTab = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(nodeTab, text="ノード管理")
+        nodeTab.columnconfigure(0, weight=1)
+        nodeTab.rowconfigure(1, weight=1)
         
         # 初期ノード追加
-        addNodeFrame = ttk.LabelFrame(mainFrame, text="初期ノード追加", padding="5")
-        addNodeFrame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        addNodeFrame = ttk.LabelFrame(nodeTab, text="初期ノード追加", padding="5")
+        addNodeFrame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         addNodeFrame.columnconfigure(1, weight=1)
         
         ttk.Label(addNodeFrame, text="Id:").grid(row=0, column=0, sticky=tk.W)
-        self.nodeInput = ttk.Entry(addNodeFrame, width=30)
+        self.nodeInput = ttk.Entry(addNodeFrame, width=50)
         self.nodeInput.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
-        self.nodeInput.insert(0, "127.0.0.1:8080")
         
         ttk.Button(addNodeFrame, text="追加", command=self.addInitialNode).grid(row=0, column=2, padx=5)
         
         # ノード情報表示
-        infoFrame = ttk.LabelFrame(mainFrame, text="ノード情報", padding="5")
-        infoFrame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+        infoFrame = ttk.LabelFrame(nodeTab, text="ノード情報", padding="5")
+        infoFrame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
         infoFrame.columnconfigure(0, weight=1)
         infoFrame.rowconfigure(1, weight=1)
         
@@ -95,8 +145,8 @@ class TuneGui:
         nodesFrame.rowconfigure(0, weight=1)
         
         # ツリービューでノード一覧を表示
-        columns = ("Id", "名前", "公開鍵")
-        self.nodesTree = ttk.Treeview(nodesFrame, columns=columns, show="headings", height=10)
+        columns = ("Id", "名前", "公開鍵", "状態")
+        self.nodesTree = ttk.Treeview(nodesFrame, columns=columns, show="headings", height=15)
         
         for col in columns:
             self.nodesTree.heading(col, text=col)
@@ -108,45 +158,74 @@ class TuneGui:
         self.nodesTree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
         
+        # ノード操作ボタン
+        nodeButtonsFrame = ttk.Frame(infoFrame)
+        nodeButtonsFrame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=5)
+        
+        ttk.Button(nodeButtonsFrame, text="選択ノードをBAN", command=self.banSelectedNode).pack(side=tk.LEFT, padx=5)
+        ttk.Button(nodeButtonsFrame, text="BAN解除", command=self.unbanSelectedNode).pack(side=tk.LEFT, padx=5)
+        ttk.Button(nodeButtonsFrame, text="BANリスト表示", command=self.showBanList).pack(side=tk.LEFT, padx=5)
+    
+    def setupMessageTab(self):
+        """メッセージタブの設定"""
+        messageTab = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(messageTab, text="メッセージ")
+        messageTab.columnconfigure(0, weight=1)
+        messageTab.rowconfigure(1, weight=1)
+        
         # メッセージ送信
-        messageFrame = ttk.LabelFrame(mainFrame, text="メッセージ送信", padding="5")
-        messageFrame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        messageFrame = ttk.LabelFrame(messageTab, text="メッセージ送信", padding="5")
+        messageFrame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         messageFrame.columnconfigure(1, weight=1)
         
         ttk.Label(messageFrame, text="メッセージ:").grid(row=0, column=0, sticky=tk.W)
-        self.messageInput = ttk.Entry(messageFrame, width=50)
+        self.messageInput = ttk.Entry(messageFrame, width=60)
         self.messageInput.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
         
         ttk.Button(messageFrame, text="送信", command=self.sendMessage).grid(row=0, column=2, padx=5)
         
         # メッセージ一覧
-        messagesFrame = ttk.LabelFrame(mainFrame, text="メッセージ一覧", padding="5")
-        messagesFrame.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+        messagesFrame = ttk.LabelFrame(messageTab, text="メッセージ一覧", padding="5")
+        messagesFrame.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
         messagesFrame.columnconfigure(0, weight=1)
         messagesFrame.rowconfigure(0, weight=1)
         
         # メッセージツリービュー
         msgColumns = ("時刻", "タイプ", "内容", "送信者")
-        self.messagesTree = ttk.Treeview(messagesFrame, columns=msgColumns, show="headings", height=8)
+        self.messagesTree = ttk.Treeview(messagesFrame, columns=msgColumns, show="headings", height=20)
         
         for col in msgColumns:
             self.messagesTree.heading(col, text=col)
-            self.messagesTree.column(col, width=120)
+            self.messagesTree.column(col, width=150)
         
         msgScrollbar = ttk.Scrollbar(messagesFrame, orient=tk.VERTICAL, command=self.messagesTree.yview)
         self.messagesTree.configure(yscrollcommand=msgScrollbar.set)
         
         self.messagesTree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         msgScrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+    
+    def setupLogTab(self):
+        """ログタブの設定"""
+        logTab = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(logTab, text="ログ")
+        logTab.columnconfigure(0, weight=1)
+        logTab.rowconfigure(0, weight=1)
         
         # ログ表示
-        logFrame = ttk.LabelFrame(mainFrame, text="ログ", padding="5")
-        logFrame.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
+        logFrame = ttk.LabelFrame(logTab, text="システムログ", padding="5")
+        logFrame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         logFrame.columnconfigure(0, weight=1)
         logFrame.rowconfigure(0, weight=1)
         
-        self.logText = scrolledtext.ScrolledText(logFrame, height=6, width=80)
+        self.logText = scrolledtext.ScrolledText(logFrame, height=25, width=100)
         self.logText.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # ログ操作ボタン
+        logButtonsFrame = ttk.Frame(logTab)
+        logButtonsFrame.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
+        
+        ttk.Button(logButtonsFrame, text="ログクリア", command=self.clearLog).pack(side=tk.LEFT, padx=5)
+        ttk.Button(logButtonsFrame, text="ログ保存", command=self.saveLog).pack(side=tk.LEFT, padx=5)
     
     def logMessage(self, message):
         """ログにメッセージを追加"""
@@ -255,10 +334,121 @@ class TuneGui:
             messagebox.showerror("エラー", f"メッセージの送信に失敗しました: {str(e)}")
             self.logMessage(f"エラー: {str(e)}")
     
+    def setMaxNodes(self):
+        """最大ノード数を設定"""
+        try:
+            maxNodes = self.maxNodes.get()
+            if maxNodes < 1:
+                messagebox.showwarning("警告", "最大ノード数は1以上である必要があります")
+                return
+            
+            # 最大ノード数を設定
+            from src.manager.Nodes import Nodes
+            Nodes.setMaxNodes(maxNodes)
+            
+            self.logMessage(f"最大ノード数を {maxNodes} に設定しました")
+            
+        except Exception as e:
+            messagebox.showerror("エラー", f"最大ノード数の設定に失敗しました: {str(e)}")
+            self.logMessage(f"エラー: {str(e)}")
+    
+    def banSelectedNode(self):
+        """選択されたノードをBAN"""
+        selection = self.nodesTree.selection()
+        if not selection:
+            messagebox.showwarning("警告", "BANするノードを選択してください")
+            return
+        
+        try:
+            item = selection[0]
+            nodeId = self.nodesTree.item(item, "values")[0]
+            
+            from src.manager.Nodes import Nodes
+            
+            if Nodes.isBannedNodeId(nodeId):
+                messagebox.showinfo("情報", "このノードは既にBANされています")
+                return
+            
+            # NodesクラスでBAN処理
+            Nodes.banNodeId(nodeId)
+            
+            # ノードを切断
+            self.disconnectNode(nodeId)
+            
+            self.logMessage(f"ノード {nodeId} をBANしました")
+            
+        except Exception as e:
+            messagebox.showerror("エラー", f"ノードのBANに失敗しました: {str(e)}")
+            self.logMessage(f"エラー: {str(e)}")
+    
+    def unbanSelectedNode(self):
+        """選択されたノードのBANを解除"""
+        selection = self.nodesTree.selection()
+        if not selection:
+            messagebox.showwarning("警告", "BAN解除するノードを選択してください")
+            return
+        
+        try:
+            item = selection[0]
+            nodeId = self.nodesTree.item(item, "values")[0]
+            
+            from src.manager.Nodes import Nodes
+            
+            if not Nodes.isBannedNodeId(nodeId):
+                messagebox.showinfo("情報", "このノードはBANされていません")
+                return
+            
+            # NodesクラスでBAN解除処理
+            Nodes.unbanNodeId(nodeId)
+            
+            self.logMessage(f"ノード {nodeId} のBANを解除しました")
+            
+        except Exception as e:
+            messagebox.showerror("エラー", f"ノードのBAN解除に失敗しました: {str(e)}")
+            self.logMessage(f"エラー: {str(e)}")
+    
+    def showBanList(self):
+        """BANリストを表示"""
+        from src.manager.Nodes import Nodes
+        bannedNodeIds = Nodes.getBannedNodeIds()
+        
+        if not bannedNodeIds:
+            messagebox.showinfo("BANリスト", "BANされたノードはありません")
+            return
+        
+        banList = "\n".join(sorted(bannedNodeIds))
+        messagebox.showinfo("BANリスト", f"BANされたノード:\n{banList}")
+    
+    def disconnectNode(self, nodeId):
+        """指定されたノードを切断"""
+        try:
+            from src.manager.Nodes import Nodes
+            from src.manager.Messages import Messages
+            
+            # ノードIDからノード情報を取得
+            node = Nodes.getNodeFromId(nodeId)
+            if node:
+                nodeInfo = node.getNodeInfo()
+                
+                # ノードを削除
+                if Nodes.removeNodeById(nodeId):
+                    # 該当IPのメッセージも削除
+                    Messages.deleteMessagesFromIp(nodeInfo.ip)
+                    self.logMessage(f"ノード {nodeId} を切断しました")
+                else:
+                    self.logMessage(f"ノード {nodeId} の切断に失敗しました")
+            else:
+                self.logMessage(f"ノード {nodeId} が見つかりません")
+                
+        except Exception as e:
+            self.logMessage(f"ノード切断エラー: {str(e)}")
+    
     def updateNodeInfo(self):
         """ノード情報を更新"""
         if self.isRunning:
             try:
+                from src.manager.Nodes import Nodes
+                
                 # 自分のノード情報を更新
                 myId = Me.getMyId()
                 myInfo = f"ノード名: {Me.getName()} | ポート: {Me.getPort()} | ID: {myId}"
@@ -269,10 +459,16 @@ class TuneGui:
                 
                 for node in Nodes.getNodes():
                     nodeInfo = node.getNodeInfo()
+                    nodeIdStr = nodeId.idFromNodeIAndP(f"{nodeInfo.ip}:{nodeInfo.port}")
+                    
+                    # BAN状態を確認
+                    status = "BAN" if Nodes.isBannedNodeId(nodeIdStr) else "接続中"
+                    
                     self.nodesTree.insert("", tk.END, values=(
-                        nodeId.idFromNodeIAndP(f"{nodeInfo.ip}:{nodeInfo.port}"),
+                        nodeIdStr,
                         nodeInfo.name or "不明",
-                        nodeInfo.pubKey[:20] + "..." if len(nodeInfo.pubKey) > 20 else nodeInfo.pubKey
+                        nodeInfo.pubKey[:20] + "..." if len(nodeInfo.pubKey) > 20 else nodeInfo.pubKey,
+                        status
                     ))
                 
                 # メッセージ一覧を更新
@@ -325,6 +521,27 @@ class TuneGui:
         """定期的な更新をスケジュール"""
         self.updateNodeInfo()
         self.root.after(self.updateInterval, self.scheduleUpdate)
+
+    def clearLog(self):
+        """ログをクリア"""
+        self.logText.delete(1.0, tk.END)
+        self.logMessage("ログをクリアしました")
+    
+    def saveLog(self):
+        """ログをファイルに保存"""
+        try:
+            from tkinter import filedialog
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+                title="ログを保存"
+            )
+            if filename:
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write(self.logText.get(1.0, tk.END))
+                self.logMessage(f"ログを保存しました: {filename}")
+        except Exception as e:
+            messagebox.showerror("エラー", f"ログの保存に失敗しました: {str(e)}")
 
 def main():
     # データベースディレクトリを作成
