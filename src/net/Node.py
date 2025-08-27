@@ -1,10 +1,9 @@
 from typing import Any, Generator, Optional
-import base64
-import json
 
 from src.model.NodeInfo import NodeInfo
 
 from src.net.Protocol import Response, CommuType
+from src.util import nodeTrans
 
 class Node:
     def __init__(self, nodeInfo:NodeInfo):
@@ -12,10 +11,7 @@ class Node:
     @staticmethod
     def nodeFromIAndP(iAndP:str) -> Optional["Node"]:
         try:
-            nIandPL = iAndP.split(":")
-            ip = nIandPL[0]
-            port = int(nIandPL[1])
-            return Node(NodeInfo(ip, port, "", ""))
+            return Node(NodeInfo(*nodeTrans.separateNodeIAndP(iAndP), "", ""))
         except:
             return None
     def getNodeInfo(self) -> NodeInfo:

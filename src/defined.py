@@ -1,7 +1,7 @@
-from typing import Generator
+SAVED_PATH = "./saved/"
+DB_FILE_NAME = "Tune.db"
 
-from src.model.Message import ReplyMessage, RootMessage
+SETTINGS_FILE_NAME = "Tune.ini"
+SETTINGS_SECTION_NAME = "base"
 
-SQL_MSG_TUPLE = tuple[str, str, int, str, str, str]
-MSG_GENE = Generator[ReplyMessage | RootMessage, any, None]
-MSG = ReplyMessage | RootMessage
+ENCODE = "utf-8"

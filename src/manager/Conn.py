@@ -1,9 +1,10 @@
-import sqlite3
-from sqlite3 import Connection
+import duckdb
+from duckdb import DuckDBPyConnection
+from src.defined import SAVED_PATH, DB_FILE_NAME
 
 
 class Con:
-    _con:Connection = sqlite3.connect("dbs/Tune.db", check_same_thread=False)
     @classmethod
-    def getCon(cls) -> Connection:
-        return cls._con
+    def getCon(cls) -> DuckDBPyConnection:
+        con = duckdb.connect(f"{SAVED_PATH}{DB_FILE_NAME}")
+        return con

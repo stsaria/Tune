@@ -6,48 +6,43 @@ from socket import socket as Socket
 from socket import AF_INET, SOCK_DGRAM
 from threading import Lock, Thread
 
-from src.manager.Messages import Messages
+from src.net.MyNet import ExecOp, MyNet
+from src.Settings import Key, Settings
+from src.defined import ENCODE
+from src.manager.OthersMessages import OthersMessages
 from src.manager.MyMessages import MyMessages
 from src.manager.Nodes import Nodes
-from src.model.Message import ReplyMessage, RootMessage
+from src.model.Message import DelegateMessage, ReplyMessage, RootMessage
 from src.model.NodeInfo import NodeInfo
-from src.net import Node
+from src.net.Node import Node
 from src.net.AdvNode import AdvNode
 from src.net.Protocol import Response
 from src.net.Protocol import ResponseIdentify, CommuType
 from src.util import ed25519, nettet
-from src.util import nodeId
+from src.util import msg
+from src.typeDefined import MSG
+from src.util import nodeTrans
 
 
 class Me:
-    _ip:str = "0.0.0.0"
+    _v4Ip:str = "0.0.0.0"
+    _v6Ip:str = "::"
     _port:int = nettet.selectPort(1024, 65535)
 
-    _sock:Socket = Socket(AF_INET, SOCK_DGRAM)
-    _sock.bind((_ip, _port))
-
-    _responses:dict[ResponseIdentify: Response] = {}
-    _responsesLock:Lock = Lock()
-
-    _buffer:int = 1024*1024
+    _v4Net:MyNet = MyNet(4, _v4Ip, _port)
+    _v6Net:MyNet = MyNet(6, _v6Ip, _port)
 
     _name = ""
-    _maxNodes:int = 75
-    _maxNodesLock:Lock = Lock()
     hexs = ed25519.generate()
     _pivKey:str = hexs[0]
     _pubKey:str = hexs[1]
+
     @classmethod
-    def setMaxNodes(cls, maxNodes:int) -> None:
-        with cls._maxNodesLock:
-            cls._maxNodes = maxNodes
+    def getV4Ip(cls) -> str:
+        return cls._v4Ip
     @classmethod
-    def getMaxNodes(cls) -> int:
-        with cls._maxNodesLock:
-            return cls._maxNodes
-    @classmethod
-    def getIp(cls) -> str:
-        return cls._ip
+    def getV6Ip(cls) -> str:
+        return cls._v6Ip
     @classmethod
     def getPort(cls) -> int:
         return cls._port
@@ -59,61 +54,46 @@ class Me:
         cls._name = name
     @classmethod
     def sockClose(cls):
-        cls._sock.close()
+        cls._v4Net.close()
+        cls._v6Net.close()
     @classmethod
     def getPubKey(cls) -> str:
         return cls._pubKey
     @classmethod
-    def _getResp(cls, identify:ResponseIdentify) -> Response | None:
-        with cls._responsesLock:
-            for k, v in cls._responses.items():
-                resp:Response = v
-                if k == identify.hash():
-                    return resp
-        return None
+    def getPivKey(cls) -> str:
+        return cls._pivKey
     @classmethod
-    def _addResp(cls, identify:ResponseIdentify, resp:Response):
-        with cls._responsesLock:
-            cls._responses[identify.hash()] = resp
+    def sendToAndRecv(cls, data:dict, toIp:str, toPort:int) -> Response:
+        return (cls._v6Net if ":" in toIp else cls._v4Net).sendToAndRecv(data, toIp, toPort, Settings.getInt(Key.SOCK_TIME_OUT))
     @classmethod
-    def sendToAndRecv(cls, data:dict, toIp:str, toPort:int, timeOut:int=4) -> Response:
-        try:
-            identify:ResponseIdentify = ResponseIdentify(toIp, toPort, uuid.uuid4().hex)
-            data["id"] = identify.respId
-            if isinstance(data["t"], CommuType): data["t"] = data["t"].value
-            cls._sock.sendto(json.dumps(data).encode("utf-8"), (toIp, toPort))
-
-            st = time.time()
-            while time.time()-st < timeOut:
-                resp = cls._getResp(identify)
-                if resp:
-                    return resp
-                time.sleep(0.03)
-            return Response(CommuType.LOC_TIME_OUTED, {})
-        except:
-            return Response(CommuType.LOC_ERROR, {})
+    def serve(cls):
+        Thread(target=cls._v4Net.serve, daemon=True).start()
+        Thread(target=cls._v6Net.serve, daemon=True).start()
     @classmethod
     def __hello(cls, mData:dict, addr:tuple[str, int]) -> dict:
-        Nodes.registerNode(NodeInfo(addr[0], addr[1], mData["name"], mData["pub"]))
+        Nodes.registerNode(Node(NodeInfo(addr[0], addr[1], mData["name"], mData["pub"])))
         return {"name":cls._name, "pub":cls._pubKey}
     @classmethod
     def __getNodes(cls, addr:tuple[str, int]) -> dict:
         nodes = Nodes.getNodesFromRandom(exclusionIp=addr[0], sampleK=13)
         return {"nodes": [n.getNodeInfo().getIPColonPort() for n in nodes]}
     @classmethod
-    def __getMessage(cls) -> dict:
-        message = MyMessages.getRandomMessage()
+    def __getMessage(cls, msgHash:str=None) -> dict:
+        message = MyMessages.getMessageFromHash(msgHash) if msgHash else MyMessages.getRandomMessage()
         h = message.hash()
         m = {"c":message.content, "ts":message.timestamp, "hash":h, "sig": ed25519.sign(h, cls._pivKey)}
         if isinstance(message, ReplyMessage):
             fNI = message.fromNode.getNodeInfo()
-            m["from"] = fNI.getIpColonPort()
+            m["from"] = fNI.getIPColonPort()
             m["fromPub"] = fNI.pubKey
             m["fromHash"] = message.fromHash
         return m
-
     @classmethod
-    def _allotTaskFromReq(cls, data:dict, addr:tuple[str, int]) -> None:
+    def __getDelegateMessage(cls, msgHash:str) -> dict:
+        dgMessage = MyMessages.getMessageFromHash(msgHash, isDelegate=True)
+        return {"c":dgMessage.content, "ts":dgMessage.timestamp, "hash":dgMessage.hash(), "sig": dgMessage.sig, "dgPub": dgMessage.delegatePub}
+    @classmethod
+    def allotTaskFromReq(cls, data:dict, addr:tuple[str, int]) -> tuple[ExecOp, any] | None:
         r:dict = {"t":CommuType.RESPONSE.value, "d":{}, "id":data["id"]}
         match data["t"]:
             case CommuType.HELLO.value:
@@ -126,88 +106,50 @@ class Me:
                 resType: CommuType | None = None
                 for e in CommuType:
                     if e.value == data["t"]: resType = e
-                if not resType: return
-                cls._addResp(ResponseIdentify(addr[0], addr[1], data["id"]), Response(resType, data["d"]))
-                return
+                if not resType: return 
+                return (ExecOp.RESP, (ResponseIdentify(addr[0], addr[1], data["id"]), Response(resType, data["d"])))
             case CommuType.PING.value:
                 pass
+            case CommuType.GET_MY_IP_AND_PORT.value:
+                r["d"] = {"ipColonPort":f"{addr[0]}:{addr[1]}", "sig":ed25519.sign(f"{addr[0]}:{addr[1]}", cls._pivKey)}
+            case CommuType.GET_MESSAGE.value:
+                r["d"] = cls.__getMessage(data["d"]["hash"])
+            case CommuType.GET_DELEGATE_MESSAGE.value:
+                r["d"] = cls.__getDelegateMessage(data["d"]["hash"])
             case _:
                 r["t"] = CommuType.ERR_I_DONT_KNOW_YOUR_REQ_TYPE.value
-        cls._sock.sendto(json.dumps(r).encode("utf-8"), addr)
-    @classmethod
-    def serve(cls) -> None:
-        while True:
-            try:
-                d, a = cls._sock.recvfrom(cls._buffer)
-                if Nodes.isBannedIp(a[0]):
-                    continue
-                elif Nodes.isMaxNodes() and not Nodes.getNodesFromIp(a[0]):
-                    continue
-                jS = d.decode("utf-8")
-                j:dict = json.loads(jS)
-                for k, v in {"t":int, "d":dict, "id":str}.items():
-                    if not isinstance(j[k], v):
-                        raise
-                cls._allotTaskFromReq(j, a)
-            except:
-                pass
-    @classmethod
-    def _syncNewNodeFromNode(cls, node:Node):
-        for n in node.getNodes():
-            Nodes.registerNode(n)
+        return ExecOp.SEND, r
     @classmethod
     def _syncNode(cls, node:Node) -> bool:
         if not node.ping():
-            return False
+            Nodes.unregisterNode(node)
         aN = AdvNode(node)
-        Thread(target=cls._syncNewNodeFromNode, args=(node,)).start()
-        for i in range(16):
+        for n in node.getNodes():
+            Nodes.registerNode(n)
+        for _ in range(Settings.getInt(Key.MEESAGES_PER_NODE)):
             m = aN.getMessage()
             if not m: continue
-            Messages.addMessage(m)
+            elif msg.isNeedDumpMessage(m): continue
+            OthersMessages.addMessage(m)
             if not isinstance(m, ReplyMessage):
                 continue
             for rM in aN.getMessagesFromHashRecur(m.fromHash):
-                Messages.addMessage(rM)
+                OthersMessages.addMessage(rM)
         return True
-    
-    @classmethod
-    def dumpMessages(cls, maxMsgS:int=1000, maxReplyRatio:float=1/3, minMsgSize:int=10, expirationSecS:int=3*3600):
-        sortedMsgS = sorted([m for m in Messages.getMessages()], key=lambda m: m.timestamp)
-        def d(m): Messages.deleteMessage(m)
-        def dByMax(sMS,maXR,t,maX=None):
-            sMS = [m for m in sMS if isinstance(m, t)]
-            l = len(sMS)
-            maX = maX if maX else l*maXR
-            if l > maX:
-                for m in sMS[:l-maX]:
-                    d(m)
-        for m in Messages.getMessages():
-            if len(m.content) < minMsgSize or int(time.time()) - m.timestamp > expirationSecS:
-                d(m)
-        dByMax(sortedMsgS, maxReplyRatio, ReplyMessage)
-        dByMax(sortedMsgS, 1, (ReplyMessage | RootMessage), maX=maxMsgS)
     @classmethod
     def syncer(cls, loopDelay:int=40) -> None:
         while True:
             for n in Nodes.getNodes():
-                try:
-                    r = cls._syncNode(n)
-                    if not r: Nodes.unregisterNode(n)
-                    cls.dumpMessages()
-                except:
-                    pass
-                    print(traceback.format_exc())
-            for m in Messages.getRootMessages():
-                print(m.hash())
-            print(Nodes.getNodes())
+                Thread(target=cls._syncNode, args=(n,), daemon=True).start()
+            msg.dumpMessages(OthersMessages)
+            msg.dumpMessages(MyMessages)
             time.sleep(loopDelay)
     @classmethod
     def _getMyIPColonPort(cls) -> str | None:
         nodes = Nodes.getNodesFromRandom(sampleK=5)
         if len(nodes) == 0:
             return None
-        ipColonPorts = [n.getMyIpColonPort() for n in nodes]
+        ipColonPorts = [AdvNode(n).getMyIpColonPort() for n in nodes]
         if not all(ipColonPorts) or not ipColonPorts[0]:
             return None
         return ipColonPorts[0]
@@ -216,11 +158,25 @@ class Me:
         ipColonPort = cls._getMyIPColonPort()
         if not ipColonPort:
             return None
-        return nodeId.idFromNodeIAndP(ipColonPort)
+        return nodeTrans.idFromNodeIAndP(ipColonPort)
     @classmethod
     def banNodeFromId(cls, id:str) -> None:
         n = Nodes.getNodeFromId(id)
         if not n:
             return
         Nodes.banIp(n.getNodeInfo().ip)
-        Messages.deleteMessagesFromIp(n.getNodeInfo().ip)
+        OthersMessages.deleteMessagesFromIp(n.getNodeInfo().ip)
+    @classmethod
+    def postReplyMessage(cls, content:str, fromMessage:MSG) -> None:
+        if not fromMessage.author or not fromMessage.author.getNodeInfo().pubKey: return
+        elif isinstance(fromMessage, ReplyMessage): return
+        ts = int(time.time())
+        fromHash = fromMessage.hash()
+        if "y" in Settings.get(Key.COPY_REPLY_FROM_MSGS):
+            MyMessages.addDelegateMessage(fromMessage)
+            fromAddr = Settings.get(Key.IMYME_ADDR)
+            fromPub = fromMessage.author.getNodeInfo().pubKey
+        else:
+            fromAddr = fromMessage.author.getNodeInfo().getIPColonPort()
+            fromPub = fromMessage.author.getNodeInfo().pubKey
+        MyMessages.addMessage(ReplyMessage(content=content, timestamp=ts, fromHash=fromHash, fromAddr=fromAddr, fromPub=fromPub))

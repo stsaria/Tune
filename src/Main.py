@@ -1,8 +1,9 @@
 import os
 import sys
+from src.defined import SAVED_PATH
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.makedirs("dbs", exist_ok=True)
+os.makedirs(SAVED_PATH, exist_ok=True)
 
 from src.gui.app import main
 
