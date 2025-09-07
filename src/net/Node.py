@@ -8,6 +8,7 @@ from src.util import nodeTrans
 class Node:
     def __init__(self, nodeInfo:NodeInfo):
         self._nodeInfo = nodeInfo
+        self._uniqueColorRGB:tuple[int, int, int] = (0, 0, 0)    
     @staticmethod
     def nodeFromIAndP(iAndP:str) -> Optional["Node"]:
         try:
@@ -41,3 +42,7 @@ class Node:
     def ping(self) -> bool:
         resp = self.sendToAndRecv({"t":CommuType.PING, "d":{}})
         return True if resp.respType == CommuType.RESPONSE else False
+    def updateUniqueColorRGB(self, r:int, g:int, b:int) -> None:
+        self._uniqueColorRGB = (int(r), int(g), int(b))
+    def getUniqueColorRGB(self) -> tuple[int, int, int]:
+        return self._uniqueColorRGB

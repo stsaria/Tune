@@ -14,12 +14,12 @@ def dumpMessages(cls:MyMessages | OthersMessages):
     for m in cls.getMessages():
         if isNeedDumpMessage(m): d(m)
     sortedMsgS = sorted([m for m in cls.getMessages()], key=lambda m: m.timestamp)
+    def leN(t): return len([m for m in sortedMsgS if isinstance(m, t)])
     def pruneMsgs(sMS,maxR,t,maX=None):
-        sMS = [m for m in sMS if isinstance(m, t)]
-        l = len(sMS)
-        maX = maX if maX else l*maxR
+        l = leN(t)
+        maX = maX if maX else int(l*maxR)
         if l > maX:
             for m in sMS[:l-maX]:
                 d(m)
-    pruneMsgs(sortedMsgS, Settings.getFloat(Key.MAX_REPLY_RATIO), ReplyMessage)
+    pruneMsgs(sortedMsgS, Settings.getFloat(Key.MAX_REPLY_RATIO) if leN(ReplyMessage) >= Settings.getInt(Key.MIN_COUNT_FOR_MAX_REPLY_RATIO) else 1, ReplyMessage)
     pruneMsgs(sortedMsgS, 1, (MSG), maX=Settings.getInt(Key.MAX_MESSAGES))

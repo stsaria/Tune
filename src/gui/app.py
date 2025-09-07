@@ -1,5 +1,11 @@
 """Write by Cursor"""
 
+
+import traceback
+
+
+
+
 from itertools import chain
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
@@ -12,7 +18,7 @@ from datetime import datetime
 import queue
 
 from src.defined import ENCODE
-from manager.Conn import Con
+import src.util.nodeTrans
 
 # プロジェクトのルートディレクトリをパスに追加
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -500,7 +506,7 @@ class TuneGui:
             for node in nodes:
                 try:
                     nodeInfo = node.getNodeInfo()
-                    nodeIdStr = node.idFromNodeIAndP(f"{nodeInfo.ip}:{nodeInfo.port}")
+                    nodeIdStr = nodeTrans.idFromNodeIAndP(f"{nodeInfo.ip}:{nodeInfo.port}")
                     
                     # BAN状態を確認
                     status = "BAN" if Nodes.isBannedNodeId(nodeIdStr) else "接続中"
@@ -511,8 +517,7 @@ class TuneGui:
                         nodeInfo.pubKey[:20] + "..." if len(nodeInfo.pubKey) > 20 else nodeInfo.pubKey,
                         status
                     ))
-                except Exception as nodeError:
-                    # エラーは静かに処理（ログに出力しない）
+                except:
                     pass
             
             # GUIスレッドでノード一覧を更新
@@ -520,7 +525,6 @@ class TuneGui:
             
         except Exception as e:
             self.logMessage(f"情報更新エラー: {str(e)}")
-            import traceback
             self.logMessage(f"詳細エラー: {traceback.format_exc()}")
     
     def _updateNodesTree(self, nodes_data):
@@ -869,9 +873,6 @@ class TuneGui:
             messagebox.showerror("エラー", f"ログの保存に失敗しました: {str(e)}")
 
 def main():
-    # データベースディレクトリを作成
-    os.makedirs("dbs", exist_ok=True)
-    
     root = tk.Tk()
     app = TuneGui(root)
     

@@ -17,6 +17,8 @@ class Key(Enum):
     SOCK_TIME_OUT = "sockTimeOut"
     IMYME_ADDR = "iMyMeAddr"
     COPY_REPLY_FROM_MSGS = "copyReplyFromMessages"
+    YOUYOURYOU_ADDR = "youYourYouAddr"
+    MIN_COUNT_FOR_MAX_REPLY_RATIO = "minCountForMaxReplyRatio"
 
 class Settings:
     _conf:ConfigParser = ConfigParser()
@@ -46,13 +48,15 @@ class Settings:
             
             cls.set(Key.MAX_NODES, 75)
             cls.set(Key.MAX_MESSAGES, 1000)
-            cls.set(Key.MAX_REPLY_RATIO, 1/3)
+            cls.set(Key.MAX_REPLY_RATIO, 7/10)
             cls.set(Key.MIN_MESSAGE_SIZE, 10)
             cls.set(Key.EXPIRATION_SECONDS, 5*3600)
             cls.set(Key.BUFFER, 1024*1024)
             cls.set(Key.MEESAGES_PER_NODE, 16)
             cls.set(Key.MESSAGES_RECURS, 4)
             cls.set(Key.SOCK_TIME_OUT, 7)
-            cls.set(Key.IMYME_ADDR, "IMYME:IMYME:654321")
+            cls.set(Key.IMYME_ADDR, "IMYME:IMYME:123456")
             cls.set(Key.COPY_REPLY_FROM_MSGS, "yes")
+            cls.set(Key.YOUYOURYOU_ADDR, "YOUYOURYOU:YOUYOURYOU:654321")
+            cls.set(Key.MIN_COUNT_FOR_MAX_REPLY_RATIO, 50)
 Settings.init()

@@ -12,7 +12,7 @@ from src.defined import ENCODE
 from src.manager.OthersMessages import OthersMessages
 from src.manager.MyMessages import MyMessages
 from src.manager.Nodes import Nodes
-from src.model.Message import DelegateMessage, ReplyMessage, RootMessage
+from src.model.Message import ReplyMessage, RootMessage, DelegateMessaege
 from src.model.NodeInfo import NodeInfo
 from src.net.Node import Node
 from src.net.AdvNode import AdvNode
@@ -78,13 +78,13 @@ class Me:
         nodes = Nodes.getNodesFromRandom(exclusionIp=addr[0], sampleK=13)
         return {"nodes": [n.getNodeInfo().getIPColonPort() for n in nodes]}
     @classmethod
-    def __getMessage(cls, msgHash:str=None) -> dict:
+    def __getMessage(cls, addr:tuple[str, int], msgHash:str=None) -> dict:
         message = MyMessages.getMessageFromHash(msgHash) if msgHash else MyMessages.getRandomMessage()
         h = message.hash()
         m = {"c":message.content, "ts":message.timestamp, "hash":h, "sig": ed25519.sign(h, cls._pivKey)}
         if isinstance(message, ReplyMessage):
             fNI = message.fromNode.getNodeInfo()
-            m["from"] = fNI.getIPColonPort()
+            m["from"] = Settings.get(Key.YOUYOURYOU_ADDR) if addr[0] == fNI.ip else fNI.getIPColonPort()
             m["fromPub"] = fNI.pubKey
             m["fromHash"] = message.fromHash
         return m
@@ -101,7 +101,7 @@ class Me:
             case CommuType.GET_NODES.value:
                 r["d"] = cls.__getNodes(addr)
             case CommuType.GET_RAND_MESSAGE.value:
-                r["d"] = cls.__getMessage()
+                r["d"] = cls.__getMessage(addr)
             case CommuType.RESPONSE.value:
                 resType: CommuType | None = None
                 for e in CommuType:
@@ -113,34 +113,19 @@ class Me:
             case CommuType.GET_MY_IP_AND_PORT.value:
                 r["d"] = {"ipColonPort":f"{addr[0]}:{addr[1]}", "sig":ed25519.sign(f"{addr[0]}:{addr[1]}", cls._pivKey)}
             case CommuType.GET_MESSAGE.value:
-                r["d"] = cls.__getMessage(data["d"]["hash"])
+                print(data["d"])
+                r["d"] = cls.__getMessage(addr, data["d"]["hash"])
             case CommuType.GET_DELEGATE_MESSAGE.value:
                 r["d"] = cls.__getDelegateMessage(data["d"]["hash"])
             case _:
                 r["t"] = CommuType.ERR_I_DONT_KNOW_YOUR_REQ_TYPE.value
         return ExecOp.SEND, r
     @classmethod
-    def _syncNode(cls, node:Node) -> bool:
-        if not node.ping():
-            Nodes.unregisterNode(node)
-        aN = AdvNode(node)
-        for n in node.getNodes():
-            Nodes.registerNode(n)
-        for _ in range(Settings.getInt(Key.MEESAGES_PER_NODE)):
-            m = aN.getMessage()
-            if not m: continue
-            elif msg.isNeedDumpMessage(m): continue
-            OthersMessages.addMessage(m)
-            if not isinstance(m, ReplyMessage):
-                continue
-            for rM in aN.getMessagesFromHashRecur(m.fromHash):
-                OthersMessages.addMessage(rM)
-        return True
-    @classmethod
     def syncer(cls, loopDelay:int=40) -> None:
         while True:
             for n in Nodes.getNodes():
-                Thread(target=cls._syncNode, args=(n,), daemon=True).start()
+                aN = AdvNode(n)
+                Thread(target=aN.syncNode, daemon=True).start()
             msg.dumpMessages(OthersMessages)
             msg.dumpMessages(MyMessages)
             time.sleep(loopDelay)
@@ -172,7 +157,7 @@ class Me:
         elif isinstance(fromMessage, ReplyMessage): return
         ts = int(time.time())
         fromHash = fromMessage.hash()
-        if "y" in Settings.get(Key.COPY_REPLY_FROM_MSGS):
+        if "y" in Settings.get(Key.COPY_REPLY_FROM_MSGS).lower():
             MyMessages.addDelegateMessage(fromMessage)
             fromAddr = Settings.get(Key.IMYME_ADDR)
             fromPub = fromMessage.author.getNodeInfo().pubKey

@@ -21,6 +21,7 @@ class Nodes:
     _trafficByteByIpsLock:Lock = Lock()
     @classmethod
     def registerNode(cls, node:Node) -> None:
+        def rC(): return random.randint(0,255)
         if len(cls.getNodes()) >= Settings.getInt(Key.MAX_NODES):
             return
         key = node.getNodeInfo().pubKey
@@ -28,6 +29,7 @@ class Nodes:
         with cls._nodesLock:
             if ipPort in cls._nodesByIpPort:
                 return
+            node.updateUniqueColorRGB(rC(), rC(), rC())
             if key in cls._nodesByPubKey:
                 oldNode = cls._nodesByPubKey[key]
                 oldIpPort = (oldNode.ip, oldNode.port)
