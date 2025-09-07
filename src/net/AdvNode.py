@@ -35,7 +35,6 @@ class AdvNode:
             req = {"t": CommuType.GET_RAND_MESSAGE, "d":{}}
         resp = self._node.sendToAndRecv(req)
         if resp.respType != CommuType.RESPONSE:
-            print(req, resp.respType, resp.mainData)
             return None
         mData = resp.mainData
         try:
@@ -65,7 +64,6 @@ class AdvNode:
                 return None
             return message
         except:
-            print(traceback.format_exc())
             return None
     def getMyIpColonPort(self) -> str | None:
         from src.net.Me import Me

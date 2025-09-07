@@ -81,7 +81,6 @@ class MyNet:
                     case ExecOp.SEND:
                         self.sendTo(c, a[0], a[1])
             except:
-                print(traceback.format_exc())
                 pass
     def close(self) -> None:
         self._sock.close()

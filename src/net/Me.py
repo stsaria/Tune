@@ -105,7 +105,6 @@ class Me:
             case CommuType.GET_MY_IP_AND_PORT.value:
                 r["d"] = {"ipColonPort":f"{addr[0]}:{addr[1]}", "sig":ed25519.sign(f"{addr[0]}:{addr[1]}", cls._pivKey)}
             case CommuType.GET_MESSAGE.value:
-                print(data["d"])
                 r["d"] = cls.__getMessage(addr, data["d"]["hash"])
             case CommuType.GET_DELEGATE_MESSAGE.value:
                 r["d"] = cls.__getDelegateMessage(data["d"]["hash"])
