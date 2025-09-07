@@ -1,10 +1,21 @@
 from dataclasses import dataclass
+
 from abc import ABC, abstractmethod
 from src.util import sha256
+from src.net.Node import Node
+
+"""
+Message data classes.
+
+NOTE for API users:
+    - Do NOT construct RootMessage / ReplyMessage directly.
+    - Use Api.postRootMessage / Api.postReplyMessage instead.
+    - Direct construction is allowed for advanced use cases,
+      but no guarantees are provided (self-responsibility).
+"""
 
 @dataclass(kw_only=True)
 class Message(ABC):
-    from src.net.Node import Node
     content: str
     timestamp: int
     author:Node = None
@@ -26,7 +37,6 @@ class RootMessage(Message):
 
 @dataclass
 class ReplyMessage(Message):
-    from src.net.Node import Node
     fromNode:Node
     fromHash:str
     isFromDelegate:bool = False

@@ -1,4 +1,3 @@
-from ctypes import sizeof
 from enum import Enum
 import json
 from threading import Lock
@@ -13,6 +12,7 @@ from src.defined import ENCODE
 from src.manager.Nodes import Nodes
 from src.net.Protocol import Response
 from src.net.Protocol import ResponseIdentify, CommuType
+from src.util import timestamp
 
 class ExecOp(Enum):
     RESP = 1
@@ -50,8 +50,8 @@ class MyNet:
             if isinstance(data["t"], CommuType): data["t"] = data["t"].value
             self.sendTo(data, toIp, toPort)
 
-            st = time.time()
-            while time.time()-st < timeOut:
+            st = timestamp.now()
+            while timestamp.now()-st < timeOut:
                 resp = self._getResp(identify)
                 if resp:
                     return resp
@@ -66,7 +66,7 @@ class MyNet:
                 d, a = self._sock.recvfrom(Settings.getInt(Key.BUFFER))
                 if Nodes.isBannedIp(a[0]):
                     raise
-                Nodes.traffic(a[0], d.__sizeof__())
+                Nodes.getNodeTraffic(a[0], d.__sizeof__())
                 jS = d.decode(ENCODE)
                 j:dict = json.loads(jS)
                 for k, v in {"t":int, "d":dict, "id":str}.items():

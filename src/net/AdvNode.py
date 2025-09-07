@@ -1,8 +1,7 @@
 import traceback
 from typing import Generator, Any
 
-from src.manager.MyMessages import MyMessages
-from src.manager.OthersMessages import OthersMessages
+from src.manager.Messages import OthersMessages
 from src.Settings import Key, Settings
 from src.manager.Nodes import Nodes
 from src.model.Message import ReplyMessage, RootMessage

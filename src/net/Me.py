@@ -1,18 +1,11 @@
-import json
 import time
-import traceback
-import uuid
-from socket import socket as Socket
-from socket import AF_INET, SOCK_DGRAM
-from threading import Lock, Thread
+from threading import Thread
 
 from src.net.MyNet import ExecOp, MyNet
 from src.Settings import Key, Settings
-from src.defined import ENCODE
-from src.manager.OthersMessages import OthersMessages
-from src.manager.MyMessages import MyMessages
+from src.manager.Messages import MyMessages, OthersMessages
 from src.manager.Nodes import Nodes
-from src.model.Message import ReplyMessage, RootMessage, DelegateMessaege
+from src.model.Message import ReplyMessage
 from src.model.NodeInfo import NodeInfo
 from src.net.Node import Node
 from src.net.AdvNode import AdvNode
@@ -20,9 +13,7 @@ from src.net.Protocol import Response
 from src.net.Protocol import ResponseIdentify, CommuType
 from src.util import ed25519, nettet
 from src.util import msg
-from src.typeDefined import MSG
 from src.util import nodeTrans
-
 
 class Me:
     _v4Ip:str = "0.0.0.0"
@@ -84,7 +75,8 @@ class Me:
         m = {"c":message.content, "ts":message.timestamp, "hash":h, "sig": ed25519.sign(h, cls._pivKey)}
         if isinstance(message, ReplyMessage):
             fNI = message.fromNode.getNodeInfo()
-            m["from"] = Settings.get(Key.YOUYOURYOU_ADDR) if addr[0] == fNI.ip else fNI.getIPColonPort()
+            if message.isFromDelegate: m["from"] = Settings.get(Key.IMYME_ADDR)
+            else: m["from"] = Settings.get(Key.YOUYOURYOU_ADDR) if addr[0] == fNI.ip else fNI.getIPColonPort()
             m["fromPub"] = fNI.pubKey
             m["fromHash"] = message.fromHash
         return m
@@ -144,24 +136,3 @@ class Me:
         if not ipColonPort:
             return None
         return nodeTrans.idFromNodeIAndP(ipColonPort)
-    @classmethod
-    def banNodeFromId(cls, id:str) -> None:
-        n = Nodes.getNodeFromId(id)
-        if not n:
-            return
-        Nodes.banIp(n.getNodeInfo().ip)
-        OthersMessages.deleteMessagesFromIp(n.getNodeInfo().ip)
-    @classmethod
-    def postReplyMessage(cls, content:str, fromMessage:MSG) -> None:
-        if not fromMessage.author or not fromMessage.author.getNodeInfo().pubKey: return
-        elif isinstance(fromMessage, ReplyMessage): return
-        ts = int(time.time())
-        fromHash = fromMessage.hash()
-        if "y" in Settings.get(Key.COPY_REPLY_FROM_MSGS).lower():
-            MyMessages.addDelegateMessage(fromMessage)
-            fromAddr = Settings.get(Key.IMYME_ADDR)
-            fromPub = fromMessage.author.getNodeInfo().pubKey
-        else:
-            fromAddr = fromMessage.author.getNodeInfo().getIPColonPort()
-            fromPub = fromMessage.author.getNodeInfo().pubKey
-        MyMessages.addMessage(ReplyMessage(content=content, timestamp=ts, fromHash=fromHash, fromAddr=fromAddr, fromPub=fromPub))

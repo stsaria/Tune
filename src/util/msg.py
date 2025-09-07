@@ -1,8 +1,7 @@
 import time
 
 from src.model.Message import ReplyMessage
-from manager.OthersMessages import OthersMessages
-from src.manager.MyMessages import MyMessages
+from src.manager.Messages import MyMessages, OthersMessages
 from src.Settings import Settings, Key
 from src.typeDefined import MSG
 

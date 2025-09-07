@@ -13,9 +13,6 @@ class Nodes:
 
     _bannedIps:set[str] = set()
     _bannedIpsLock:RLock = RLock()
-    
-    _bannedNodeIds:set[str] = set()
-    _bannedNodeIdsLock:RLock = RLock()
 
     _trafficByteByIps:dict[str:int] = {}
     _trafficByteByIpsLock:Lock = Lock()
@@ -74,26 +71,21 @@ class Nodes:
     def isBannedIp(cls, ip:str) -> bool:
         with cls._bannedIpsLock:
             return ip in cls._bannedIps
+    
+    @classmethod
+    def unbanNodeIp(cls, ip:str) -> None:
+        with cls._bannedIpsLock:
+            cls._bannedIps.discard(ip)
 
     @classmethod
-    def banNodeId(cls, nodeId:str) -> None:
-        with cls._bannedNodeIdsLock:
-            cls._bannedNodeIds.add(nodeId)
+    def isBannedNodeIp(cls, nodeId:str) -> bool:
+        with cls._bannedIpsLock:
+            return nodeId in cls._bannedIps
 
     @classmethod
-    def unbanNodeId(cls, nodeId:str) -> None:
-        with cls._bannedNodeIdsLock:
-            cls._bannedNodeIds.discard(nodeId)
-
-    @classmethod
-    def isBannedNodeId(cls, nodeId:str) -> bool:
-        with cls._bannedNodeIdsLock:
-            return nodeId in cls._bannedNodeIds
-
-    @classmethod
-    def getBannedNodeIds(cls) -> set[str]:
-        with cls._bannedNodeIdsLock:
-            return cls._bannedNodeIds.copy()
+    def getBannedNodeIps(cls) -> set[str]:
+        with cls._bannedIpsLock:
+            return cls._bannedIps.copy()
 
     @classmethod
     def getNodeFromPubKey(cls, pubKey:str) -> Node | None:
@@ -108,12 +100,7 @@ class Nodes:
     @classmethod
     def getNodeFromId(cls, nodeId:str) -> Node | None:
         try:
-            nodeInfo = nodeId.nodeIAndPFromId(nodeId)
-            if not nodeInfo:
-                return None
-            ip, port = nodeInfo.split(':')
-            port = int(port)
-            return cls.getNodeFromIpAndPort(ip, port)
+            return cls.getNodeFromIpAndPort(*nodeTrans.separateNodeIAndP(nodeId))
         except:
             return None
 
@@ -143,13 +130,13 @@ class Nodes:
         return random.sample(candidates, sampleK)
 
     @classmethod
-    def traffic(cls, ip:str, size:int=None):
+    def getNodeTraffic(cls, ip:str, size:int=None):
         with cls._trafficByteByIpsLock:
             if not size is None: cls._trafficByteByIps[ip] = cls._trafficByteByIps.get(ip, 0)+size
             return cls._trafficByteByIps.get(ip, 0)
     
     @classmethod
-    def traffics(cls) -> dict[str, int]:
+    def getNodesTraffics(cls) -> dict[str, int]:
         with cls._trafficByteByIpsLock:
             return cls._trafficByteByIps.copy()
     
