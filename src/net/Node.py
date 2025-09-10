@@ -3,12 +3,13 @@ from typing import Any, Generator, Optional
 from src.model.NodeInfo import NodeInfo
 
 from src.net.Protocol import Response, CommuType
-from src.util import nodeTrans
+from src.util import nodeTrans, timestamp
 
 class Node:
-    def __init__(self, nodeInfo:NodeInfo):
+    def __init__(self, nodeInfo:NodeInfo, uniqueColorRGB:tuple[int, int, int]=None, startTime:int=None):
         self._nodeInfo = nodeInfo
-        self._uniqueColorRGB:tuple[int, int, int] = (0, 0, 0)    
+        self._uniqueColorRGB:tuple[int, int, int] = uniqueColorRGB or (0, 0, 0)
+        self._startTime = startTime or timestamp.now()
     @staticmethod
     def nodeFromIAndP(iAndP:str) -> Optional["Node"]:
         try:
@@ -46,3 +47,5 @@ class Node:
         self._uniqueColorRGB = (int(r), int(g), int(b))
     def getUniqueColorRGB(self) -> tuple[int, int, int]:
         return self._uniqueColorRGB
+    def getStartTime(self) -> int:
+        return self._startTime

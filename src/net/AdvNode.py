@@ -1,9 +1,9 @@
 import traceback
 from typing import Generator, Any
 
+from src.manager.Nodes import Nodes
 from src.manager.Messages import OthersMessages
 from src.Settings import Key, Settings
-from src.manager.Nodes import Nodes
 from src.model.Message import ReplyMessage, RootMessage
 from src.net.Node import Node
 from src.net.Protocol import CommuType
@@ -45,7 +45,7 @@ class AdvNode:
                     fromNode = self._node
                     isFromDelegate = True
                 else:
-                    fromNode = Nodes.getNodeFromPubKey(mData["fromPub"])
+                    fromNode = Nodes.getNodeByPubKey(mData["fromPub"])
                     isFromDelegate = False
                 if mData["from"] == Settings.get(Key.YOUYOURYOU_ADDR):
                     fromNode = None

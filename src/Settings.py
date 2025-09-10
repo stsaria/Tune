@@ -19,6 +19,7 @@ class Key(Enum):
     COPY_REPLY_FROM_MSGS = "copyReplyFromMessages"
     YOUYOURYOU_ADDR = "youYourYouAddr"
     MIN_COUNT_FOR_MAX_REPLY_RATIO = "minCountForMaxReplyRatio"
+    NODE_NEW_DURATION_SEC = "nodeNewDurationSec"
 
 class Settings:
     _conf:ConfigParser = ConfigParser()
@@ -59,4 +60,5 @@ class Settings:
             cls.set(Key.COPY_REPLY_FROM_MSGS, "yes")
             cls.set(Key.YOUYOURYOU_ADDR, "YOUYOURYOU:YOUYOURYOU:654321")
             cls.set(Key.MIN_COUNT_FOR_MAX_REPLY_RATIO, 50)
+            cls.set(Key.NODE_NEW_DURATION_SEC, 10)
 Settings.init()

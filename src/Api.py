@@ -2,10 +2,11 @@ from itertools import chain
 from threading import Lock, Thread
 from typing import Iterable
 
-from Settings import Key, Settings
+from model.NodeInfo import NodeInfo
+from src.Settings import Key, Settings
+from src.manager.Nodes import Nodes
 from src.model.Message import ReplyMessage, RootMessage
 from src.manager.Messages import MyMessages, OthersMessages
-from src.manager.Nodes import Nodes
 from src.net.Me import Me
 from src.net.Node import Node
 from src.util import nodeTrans, timestamp
@@ -45,7 +46,7 @@ class Api:
     @staticmethod
     def banNodeByIp(ip:str) -> None:
         """Ban a node by IP address."""
-        Nodes.banIp(ip)
+        Nodes.ban(ip)
         OthersMessages.deleteMessagesFromIp(ip)
     @staticmethod
     def banNodeById(nodeId:str) -> None:
@@ -58,7 +59,7 @@ class Api:
     @staticmethod
     def unbanNodeByIp(ip:str) -> None:
         """Unban a node by IP address."""
-        Nodes.unbanIp(ip)
+        Nodes.unban(ip)
     @staticmethod
     def unbanNodeById(nodeId:str) -> None:
         """Unban a node by Node ID."""
@@ -103,7 +104,7 @@ class Api:
         elif isinstance(rootMsg, ReplyMessage): return 2
         if "y" in Settings.get(Key.COPY_REPLY_FROM_MSGS).lower():
             MyMessages.addDelegateMessage(rootMsg)
-            fromNode = Nodes.getNodeOrGenerateFromIAndPOrPubkey(Settings.get(Key.IMYME_ADDR), rootMsg.author.getNodeInfo().pubKey)
+            fromNode = Nodes.getNodeOrGenerateByIAndPOrPubKey(Settings.get(Key.IMYME_ADDR), rootMsg.author.getNodeInfo().pubKey)
         else:
             fromNode = rootMsg.author
         MyMessages.addMessage(ReplyMessage(content=content, timestamp=timestamp.now(), fromHash=rootMsg.hash(), fromNode=fromNode))

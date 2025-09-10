@@ -1,10 +1,10 @@
 import time
 from threading import Thread
 
+from manager.Nodes import Nodes
 from src.net.MyNet import ExecOp, MyNet
 from src.Settings import Key, Settings
 from src.manager.Messages import MyMessages, OthersMessages
-from src.manager.Nodes import Nodes
 from src.model.Message import ReplyMessage
 from src.model.NodeInfo import NodeInfo
 from src.net.Node import Node
@@ -66,7 +66,7 @@ class Me:
         return {"name":cls._name, "pub":cls._pubKey}
     @classmethod
     def __getNodes(cls, addr:tuple[str, int]) -> dict:
-        nodes = Nodes.getNodesFromRandom(exclusionIp=addr[0], sampleK=13)
+        nodes = Nodes.getNodesByRandom(exclusionIp=addr[0], limit=13)
         return {"nodes": [n.getNodeInfo().getIPColonPort() for n in nodes]}
     @classmethod
     def __getMessage(cls, addr:tuple[str, int], msgHash:str=None) -> dict:
@@ -122,7 +122,7 @@ class Me:
             time.sleep(loopDelay)
     @classmethod
     def _getMyIPColonPort(cls) -> str | None:
-        nodes = Nodes.getNodesFromRandom(sampleK=5)
+        nodes = Nodes.getNodesByRandom(limit=5)
         if len(nodes) == 0:
             return None
         ipColonPorts = [AdvNode(n).getMyIpColonPort() for n in nodes]

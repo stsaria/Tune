@@ -2,14 +2,13 @@ from enum import Enum
 import json
 from threading import Lock
 import time
-import traceback
 from socket import IPPROTO_IPV6, IPV6_V6ONLY, SO_REUSEADDR, SOL_SOCKET, socket as Socket
 from socket import AF_INET, SOCK_DGRAM, AF_INET6
 import uuid
 
+from manager.Nodes import Nodes
 from src.Settings import Key, Settings
 from src.defined import ENCODE
-from src.manager.Nodes import Nodes
 from src.net.Protocol import Response
 from src.net.Protocol import ResponseIdentify, CommuType
 from src.util import timestamp
@@ -29,15 +28,11 @@ class MyNet:
         if prot == AF_INET6: self._sock.setsockopt(IPPROTO_IPV6, IPV6_V6ONLY, 1)
         self._sock.bind((host, port))
 
-        self._responses:dict[ResponseIdentify: Response] = {}
+        self._responses:dict[str: Response] = {}
         self._responsesLock:Lock = Lock()
     def _getResp(self, identify:ResponseIdentify) -> Response | None:
         with self._responsesLock:
-            for k, v in self._responses.items():
-                resp:Response = v
-                if k == identify.hash():
-                    return resp
-        return None
+            return self._responses.get(identify.hash())
     def _addResp(self, identify:ResponseIdentify, resp:Response):
         with self._responsesLock:
             self._responses[identify.hash()] = resp
@@ -64,9 +59,9 @@ class MyNet:
         while True:
             try:
                 d, a = self._sock.recvfrom(Settings.getInt(Key.BUFFER))
-                if Nodes.isBannedIp(a[0]):
+                if Nodes.isBanned(a[0]):
                     raise
-                Nodes.getNodeTraffic(a[0], d.__sizeof__())
+                Nodes.updateNodeTraffic(a[0], d.__sizeof__())
                 jS = d.decode(ENCODE)
                 j:dict = json.loads(jS)
                 for k, v in {"t":int, "d":dict, "id":str}.items():

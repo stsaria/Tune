@@ -1,146 +1,111 @@
 import random
 from threading import Lock, RLock
 
+from manager.DB import DB
 from model.NodeInfo import NodeInfo
 from src.Settings import Key, Settings
 from src.net.Node import Node
 from src.util import nodeTrans
 
+NODE_TUPLE = tuple[str, str, int, str, int, int, int, int]
+
 class Nodes:
-    _nodesByPubKey:dict[str, Node] = {}
-    _nodesByIpPort:dict[tuple[str, int], Node] = {}
-    _nodesLock:RLock = RLock()
-
-    _bannedIps:set[str] = set()
-    _bannedIpsLock:RLock = RLock()
-
-    _trafficByteByIps:dict[str:int] = {}
-    _trafficByteByIpsLock:Lock = Lock()
+    @classmethod
+    def generateNodeByNodeInfo(cls, nodeInfo:NodeInfo, uniqueColorRGB:tuple[int, int, int], startTime:int) -> Node:
+        return Node(nodeInfo, uniqueColorRGB=uniqueColorRGB, startTime=startTime)
     @classmethod
     def registerNode(cls, node:Node) -> None:
-        def rC(): return random.randint(0,255)
-        if len(cls.getNodes()) >= Settings.getInt(Key.MAX_NODES):
-            return
-        key = node.getNodeInfo().pubKey
-        ipPort = (node.getNodeInfo().ip, node.getNodeInfo().port)
-        with cls._nodesLock:
-            if ipPort in cls._nodesByIpPort:
-                return
-            node.updateUniqueColorRGB(rC(), rC(), rC())
-            if key in cls._nodesByPubKey:
-                oldNode = cls._nodesByPubKey[key]
-                oldIpPort = (oldNode.ip, oldNode.port)
-                cls._nodesByIpPort.pop(oldIpPort, None)
-            cls._nodesByPubKey[key] = node
-            cls._nodesByIpPort[ipPort] = node
-
+        if cls.getLength() >= Settings.getInt(Key.MAX_NODES): return
+        nodeInfo = node.getNodeInfo()
+        if cls.isBannedIp(nodeInfo.ip): return
+        elif cls.getNodeByIpAndPort(nodeInfo.ip, nodeInfo.port) or cls.getNodeByPubKey(nodeInfo.pubKey): return
+        node.updateUniqueColorRGB(*[random.randint(0,255) for _ in range(3)]*3)
+        DB.execAndCommit("""
+            INSERT OR REPLACE INTO nodes (pubKey, ip, port, name, uniqueColorR, uniqueColorG, uniqueColorB, startTime)
+            VALUES (?, ?, ?, ?, ?, ?, ? ?)
+        """, (nodeInfo.pubKey, nodeInfo.ip, nodeInfo.port, nodeInfo.name, *node.getUniqueColorRGB(), node.getStartTime()))
     @classmethod
     def unregisterNode(cls, node:Node) -> None:
         nI = node.getNodeInfo()
-        with cls._nodesLock:
-            cls._nodesByPubKey.pop(nI.pubKey, None)
-            cls._nodesByIpPort.pop((nI.ip, nI.port), None)
+        DB.execAndCommit("DELETE FROM nodes WHERE pubKey = ? OR (ip = ? AND port = ?)", (nI.pubKey, nI.ip, nI.port))
     @classmethod
-    def removeNodeById(cls, nodeId:str) -> bool:
+    def getNodeByIpAndPort(cls, ip:str, port:int) -> Node | None:
+        return cls._sqlNodeToNode(DB.fetchOne("SELECT * FROM nodes WHERE ip = ? AND port = ?",(ip, port)))
+    @classmethod
+    def getNodeByPubKey(cls, pubKey:str) -> Node | None:
+        return cls._sqlNodeToNode(DB.fetchOne("SELECT * FROM nodes WHERE pubKey = ?", (pubKey,)))
+    @classmethod
+    def getNodeById(cls, nodeId:str) -> Node | None:
         try:
-            ip, port = nodeTrans.separateNodeIAndP(nodeTrans.nodeIAndPFromId(nodeId))
-            
-            with cls._nodesLock:
-                if (ip, port) in cls._nodesByIpPort:
-                    cls._nodesByPubKey.pop(cls._nodesByIpPort[(ip, port)].getNodeInfo().pubKey, None)
-                    cls._nodesByIpPort.pop((ip, port), None)
-                    return True
-            return False
+            return cls.getNodeByIpAndPort(*nodeTrans.separateNodeIAndP(nodeId))
         except:
-            return False
-    @classmethod
-    def isBannedIp(cls, ip:str) -> bool:
-        with cls._bannedIpsLock:
-            return ip in cls._bannedIps
-    @classmethod
-    def banIp(cls, ip:str) -> None:
-        with cls._bannedIpsLock:
-            cls._bannedIps.add(ip)
-
-    @classmethod
-    def unbanIp(cls, ip:str) -> None:
-        with cls._bannedIpsLock:
-            cls._bannedIps.discard(ip)
-
-    @classmethod
-    def isBannedIp(cls, ip:str) -> bool:
-        with cls._bannedIpsLock:
-            return ip in cls._bannedIps
+            return None
     
     @classmethod
-    def unbanNodeIp(cls, ip:str) -> None:
-        with cls._bannedIpsLock:
-            cls._bannedIps.discard(ip)
+    def getNodes(cls) -> list[Node]:
+        [N for n in DB.fetchAll("SELECT * FROM nodes") if (N := cls._sqlNodeToNode(n))]
+    @classmethod
+    def getNodesByRandom(cls, limit:int=1) -> list[Node]:
+        return [N for n in DB.fetchAll("SELECT * FROM nodes ORDER BY RANDOM() LIMIT ?", (limit,)) if (N := cls._sqlNodeToNode(n))]
+    
+    @classmethod
+    def getLength(cls) -> int:
+        return DB.fetchOne("SELECT COUNT(*) FROM nodes")[0]
+    
+    @classmethod
+    def ban(cls, ip:str) -> None:
+        DB.execAndCommit("INSERT OR REPLACE INTO bannedIps (ip) VALUES (?)", (ip,))
+    @classmethod
+    def unban(cls, ip:str) -> None:
+        DB.execAndCommit("DELETE FROM bannedIps WHERE ip = ?", (ip,))
+    @classmethod
+    def isBanned(cls, ip:str) -> bool:
+        return bool(DB.fetchOne("SELECT 1 FROM bannedIps WHERE ip = ?", (ip,))[0])
 
     @classmethod
-    def isBannedNodeIp(cls, nodeId:str) -> bool:
-        with cls._bannedIpsLock:
-            return nodeId in cls._bannedIps
+    def updateNodeTraffic(cls, ip:str, size:int):
+        DB.execAndCommit("INSERT OR REPLACE INTO traffics (ip, size) VALUES (?, ?)", (ip, cls.getNodeTraffic(ip)+size))
+    @classmethod
+    def getNodeTraffic(cls, ip:str) -> int:
+        return cls.getNodesTraffics().get(ip, 0)
+    @classmethod
+    def getNodesTraffics(cls) -> dict[str, int]:
+        return {t[0]:t[1] for t in DB.fetchAll("SELECT * FROM traffics")}
+    
+    @classmethod
+    def getNodeOrGenerateByIAndPOrPubKey(cls, nIAndP:str, pubKey:str) -> Node:
+        separatedNIAndP = nodeTrans.separateNodeIAndP(nIAndP)
+        return cls.getNodeByIpAndPort(*separatedNIAndP) or cls.getNodeByPubKey(pubKey) or Node(NodeInfo(separatedNIAndP[0], separatedNIAndP[1], "IDK", pubKey))
 
     @classmethod
-    def getBannedNodeIps(cls) -> set[str]:
-        with cls._bannedIpsLock:
-            return cls._bannedIps.copy()
-
-    @classmethod
-    def getNodeFromPubKey(cls, pubKey:str) -> Node | None:
-        with cls._nodesLock:
-            return cls._nodesByPubKey.get(pubKey)
-
-    @classmethod
-    def getNodeFromIpAndPort(cls, ip:str, port:int) -> Node | None:
-        with cls._nodesLock:
-            return cls._nodesByIpPort.get((ip, port))
-
-    @classmethod
-    def getNodeFromId(cls, nodeId:str) -> Node | None:
+    def _sqlNodeToNode(cls, n:NODE_TUPLE) -> Node | None:
+        if not n:
+            return None
         try:
-            return cls.getNodeFromIpAndPort(*nodeTrans.separateNodeIAndP(nodeId))
+            return Node(NodeInfo(n[1], n[2], n[3], n[0]), (n[4], n[5], n[6]), n[7])
         except:
             return None
 
-    @classmethod
-    def getNodesFromIp(cls, ip:str) -> list[Node]:
-        with cls._nodesLock:
-            return [
-                n for (i, p), n in cls._nodesByIpPort.items()
-                if i == ip
-            ]
-
-    @classmethod
-    def getNodes(cls) -> list[Node]:
-        with cls._nodesLock:
-            return list(cls._nodesByPubKey.values())
-
-    @classmethod
-    def getNodesFromRandom(cls, exclusionIp:str = None, sampleK:int = 1) -> list[Node]:
-        with cls._nodesLock:
-            candidates = [
-                n
-                for n in cls._nodesByPubKey.values()
-                if (n.getNodeInfo().ip != exclusionIp)
-            ]
-        if len(candidates) <= sampleK:
-            return candidates
-        return random.sample(candidates, sampleK)
-
-    @classmethod
-    def getNodeTraffic(cls, ip:str, size:int=None):
-        with cls._trafficByteByIpsLock:
-            if not size is None: cls._trafficByteByIps[ip] = cls._trafficByteByIps.get(ip, 0)+size
-            return cls._trafficByteByIps.get(ip, 0)
-    
-    @classmethod
-    def getNodesTraffics(cls) -> dict[str, int]:
-        with cls._trafficByteByIpsLock:
-            return cls._trafficByteByIps.copy()
-    
-    @staticmethod
-    def getNodeOrGenerateFromIAndPOrPubkey(nIAndP:str, pubKey:str) -> Node:
-        separatedNIAndP = nodeTrans.separateNodeIAndP(nIAndP)
-        return Nodes.getNodeFromIpAndPort(*separatedNIAndP) or Nodes.getNodeFromPubKey(pubKey) or Node(NodeInfo(separatedNIAndP[0], separatedNIAndP[1], "IDK", pubKey))
+    DB.execAndCommit("""
+        CREATE TABLE IF NOT EXISTS nodes (
+            pubKey TEXT PRIMARY KEY,
+            ip TEXT NOT NULL,
+            port INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            uniqueColorR TEXT NOT NULL,
+            uniqueColorG TEXT NOT NULL,
+            uniqueColorB TEXT NOT NULL,
+            startTime INTEGER NOT NULL
+        )
+    """)
+    DB.execAndCommit("""
+        CREATE TABLE IF NOT EXISTS bannedIps (
+            ip TEXT PRIMARY KEY
+        )
+    """)
+    DB.execAndCommit("""
+        CREATE TABLE IF NOT EXISTS traffics (
+            ip TEXT PRIMARY KEY,
+            size INTEGER NOT NULL
+        )
+    """)
