@@ -4,10 +4,12 @@ from src.model.Message import ReplyMessage
 from src.manager.Messages import MyMessages, OthersMessages
 from src.Settings import Settings, Key
 from src.typeDefined import MSG
+from src.util import timestamp
 
 def isNeedDumpMessage(m:MSG):
     expirationSecS = Settings.getInt(Key.EXPIRATION_SECONDS)
-    return len(m.content) < Settings.getInt(Key.MIN_MESSAGE_SIZE) or (False if expirationSecS < 0 else (int(time.time()) - m.timestamp > expirationSecS)) or m.timestamp > int(time.time())
+    now = timestamp.now()
+    return len(m.content) < Settings.getInt(Key.MIN_MESSAGE_SIZE) or (False if expirationSecS < 0 else (now - m.timestamp > expirationSecS)) or m.timestamp > now
 def dumpMessages(cls:MyMessages | OthersMessages):
     def d(m): cls.deleteMessage(m)
     for m in cls.getMessages():

@@ -1,8 +1,8 @@
 import random
 from threading import Lock, RLock
 
-from manager.DB import DB
-from model.NodeInfo import NodeInfo
+from src.manager.DB import DB
+from src.model.NodeInfo import NodeInfo
 from src.Settings import Key, Settings
 from src.net.Node import Node
 from src.util import nodeTrans
@@ -11,8 +11,8 @@ NODE_TUPLE = tuple[str, str, int, str, int, int, int, int]
 
 class Nodes:
     @classmethod
-    def generateNodeByNodeInfo(cls, nodeInfo:NodeInfo, uniqueColorRGB:tuple[int, int, int], startTime:int) -> Node:
-        return Node(nodeInfo, uniqueColorRGB=uniqueColorRGB, startTime=startTime)
+    def generateNodeByNodeInfo(cls, nodeInfo:NodeInfo, uniqueColorRGB:tuple[int, int, int], startTime:int, expireTime:int) -> Node:
+        return Node(nodeInfo, uniqueColorRGB=uniqueColorRGB, startTime=startTime, expireTime=expireTime)
     @classmethod
     def registerNode(cls, node:Node) -> None:
         if cls.getLength() >= Settings.getInt(Key.MAX_NODES): return
@@ -21,9 +21,9 @@ class Nodes:
         elif cls.getNodeByIpAndPort(nodeInfo.ip, nodeInfo.port) or cls.getNodeByPubKey(nodeInfo.pubKey): return
         node.updateUniqueColorRGB(*[random.randint(0,255) for _ in range(3)]*3)
         DB.execAndCommit("""
-            INSERT OR REPLACE INTO nodes (pubKey, ip, port, name, uniqueColorR, uniqueColorG, uniqueColorB, startTime)
-            VALUES (?, ?, ?, ?, ?, ?, ? ?)
-        """, (nodeInfo.pubKey, nodeInfo.ip, nodeInfo.port, nodeInfo.name, *node.getUniqueColorRGB(), node.getStartTime()))
+            INSERT OR REPLACE INTO nodes (pubKey, ip, port, name, uniqueColorR, uniqueColorG, uniqueColorB, startTime, expireTime)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (nodeInfo.pubKey, nodeInfo.ip, nodeInfo.port, nodeInfo.name, *node.getUniqueColorRGB(), node.getStartTime(), node.getExpireTime()))
     @classmethod
     def unregisterNode(cls, node:Node) -> None:
         nI = node.getNodeInfo()
@@ -43,7 +43,7 @@ class Nodes:
     
     @classmethod
     def getNodes(cls) -> list[Node]:
-        [N for n in DB.fetchAll("SELECT * FROM nodes") if (N := cls._sqlNodeToNode(n))]
+        return [N for n in DB.fetchAll("SELECT * FROM nodes") if (N := cls._sqlNodeToNode(n))]
     @classmethod
     def getNodesByRandom(cls, limit:int=1) -> list[Node]:
         return [N for n in DB.fetchAll("SELECT * FROM nodes ORDER BY RANDOM() LIMIT ?", (limit,)) if (N := cls._sqlNodeToNode(n))]
@@ -82,7 +82,7 @@ class Nodes:
         if not n:
             return None
         try:
-            return Node(NodeInfo(n[1], n[2], n[3], n[0]), (n[4], n[5], n[6]), n[7])
+            return Node(NodeInfo(n[1], n[2], n[3], n[0]), (n[4], n[5], n[6]), n[7], n[8])
         except:
             return None
 
@@ -95,7 +95,8 @@ class Nodes:
             uniqueColorR TEXT NOT NULL,
             uniqueColorG TEXT NOT NULL,
             uniqueColorB TEXT NOT NULL,
-            startTime INTEGER NOT NULL
+            startTime INTEGER NOT NULL,
+            expireTime INTEGER NOT NULL
         )
     """)
     DB.execAndCommit("""

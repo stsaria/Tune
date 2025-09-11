@@ -6,7 +6,7 @@ from socket import IPPROTO_IPV6, IPV6_V6ONLY, SO_REUSEADDR, SOL_SOCKET, socket a
 from socket import AF_INET, SOCK_DGRAM, AF_INET6
 import uuid
 
-from manager.Nodes import Nodes
+from src.manager.Nodes import Nodes
 from src.Settings import Key, Settings
 from src.defined import ENCODE
 from src.net.Protocol import Response

@@ -1,4 +1,3 @@
-import traceback
 from typing import Generator, Any
 
 from src.manager.Nodes import Nodes
@@ -8,8 +7,9 @@ from src.model.Message import ReplyMessage, RootMessage
 from src.net.Node import Node
 from src.net.Protocol import CommuType
 from src.util import ed25519
-from src.typeDefined import MSG, MSGS
+from src.typeDefined import MSG
 from src.util import msg
+from src.util import timestamp
 
 
 class AdvNode:
@@ -81,7 +81,7 @@ class AdvNode:
         OthersMessages.addMessage(m)
         return m
     def syncNode(self) -> bool:
-        if not self._node.ping():
+        if not self._node.ping() or (Nodes.getLength() >= Settings.getInt(Key.MIN_COUNT_FOR_NODE_REPLACEMENT_INTERVAL) and self._node.getExpireTime() >= timestamp.now()):
             Nodes.unregisterNode(self._node)
         for n in self._node.getNodes():
             Nodes.registerNode(n)

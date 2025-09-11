@@ -1,7 +1,7 @@
 import time
 from threading import Thread
 
-from manager.Nodes import Nodes
+from src.manager.Nodes import Nodes
 from src.net.MyNet import ExecOp, MyNet
 from src.Settings import Key, Settings
 from src.manager.Messages import MyMessages, OthersMessages
@@ -70,7 +70,7 @@ class Me:
         return {"nodes": [n.getNodeInfo().getIPColonPort() for n in nodes]}
     @classmethod
     def __getMessage(cls, addr:tuple[str, int], msgHash:str=None) -> dict:
-        message = MyMessages.getMessageFromHash(msgHash) if msgHash else MyMessages.getRandomMessage()
+        message = MyMessages.getMessageByHash(msgHash) if msgHash else MyMessages.getRandomMessage()
         h = message.hash()
         m = {"c":message.content, "ts":message.timestamp, "hash":h, "sig": ed25519.sign(h, cls._pivKey)}
         if isinstance(message, ReplyMessage):
@@ -82,7 +82,7 @@ class Me:
         return m
     @classmethod
     def __getDelegateMessage(cls, msgHash:str) -> dict:
-        dgMessage = MyMessages.getMessageFromHash(msgHash, isDelegate=True)
+        dgMessage = MyMessages.getMessageByHash(msgHash, isDelegate=True)
         return {"c":dgMessage.content, "ts":dgMessage.timestamp, "hash":dgMessage.hash(), "sig": dgMessage.sig, "dgPub": dgMessage.delegatePub}
     @classmethod
     def allotTaskFromReq(cls, data:dict, addr:tuple[str, int]) -> tuple[ExecOp, any] | None:

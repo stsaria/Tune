@@ -1,15 +1,18 @@
+import random
 from typing import Any, Generator, Optional
 
+from src.Settings import Settings, Key
 from src.model.NodeInfo import NodeInfo
 
 from src.net.Protocol import Response, CommuType
 from src.util import nodeTrans, timestamp
 
 class Node:
-    def __init__(self, nodeInfo:NodeInfo, uniqueColorRGB:tuple[int, int, int]=None, startTime:int=None):
-        self._nodeInfo = nodeInfo
+    def __init__(self, nodeInfo:NodeInfo, uniqueColorRGB:tuple[int, int, int]=None, startTime:int=None, expireTime:int=None):
+        self._nodeInfo:NodeInfo = nodeInfo
         self._uniqueColorRGB:tuple[int, int, int] = uniqueColorRGB or (0, 0, 0)
-        self._startTime = startTime or timestamp.now()
+        self._startTime:int = startTime or timestamp.now()
+        self._expireTime:int = expireTime or startTime+random.randint(Settings.getInt(Key.NODE_REPLACEMENT_INTERVAL_MIN), Settings.getInt(Key.NODE_REPLACEMENT_INTERVAL_MAX))
     @staticmethod
     def nodeFromIAndP(iAndP:str) -> Optional["Node"]:
         try:
@@ -49,3 +52,5 @@ class Node:
         return self._uniqueColorRGB
     def getStartTime(self) -> int:
         return self._startTime
+    def getExpireTime(self) -> int:
+        return self._expireTime

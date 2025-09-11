@@ -1,9 +1,11 @@
+import os
 from itertools import chain
 from threading import Lock, Thread
 from typing import Iterable
 
-from model.NodeInfo import NodeInfo
-from src.Settings import Key, Settings
+from src.defined import SAVED_PATH
+os.makedirs(SAVED_PATH, exist_ok=True)
+
 from src.manager.Nodes import Nodes
 from src.model.Message import ReplyMessage, RootMessage
 from src.manager.Messages import MyMessages, OthersMessages
@@ -11,6 +13,7 @@ from src.net.Me import Me
 from src.net.Node import Node
 from src.util import nodeTrans, timestamp
 from src.typeDefined import MSG
+from src.Settings import Key, Settings
 
 class Api:
     _started:bool = False
@@ -99,9 +102,11 @@ class Api:
         0: Success
         1: The original message has no author or the author's public key is missing.
         2: The original message is a reply message, cannot reply to a reply.
+        3: The root message does not exist in MyMessages, cannot reply.
         """
         if not rootMsg.author or not rootMsg.author.getNodeInfo().pubKey: return 1
         elif isinstance(rootMsg, ReplyMessage): return 2
+        elif MyMessages.getMessageByHash(rootMsg.hash()): return 3
         if "y" in Settings.get(Key.COPY_REPLY_FROM_MSGS).lower():
             MyMessages.addDelegateMessage(rootMsg)
             fromNode = Nodes.getNodeOrGenerateByIAndPOrPubKey(Settings.get(Key.IMYME_ADDR), rootMsg.author.getNodeInfo().pubKey)

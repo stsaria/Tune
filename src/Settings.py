@@ -20,6 +20,9 @@ class Key(Enum):
     YOUYOURYOU_ADDR = "youYourYouAddr"
     MIN_COUNT_FOR_MAX_REPLY_RATIO = "minCountForMaxReplyRatio"
     NODE_NEW_DURATION_SEC = "nodeNewDurationSec"
+    NODE_REPLACEMENT_INTERVAL_MIN = "nodeReplacementIntervalMin"
+    NODE_REPLACEMENT_INTERVAL_MAX = "nodeReplacementIntervalMax"
+    MIN_COUNT_FOR_NODE_REPLACEMENT_INTERVAL = "minCountForNodeReplacementInterval"
 
 class Settings:
     _conf:ConfigParser = ConfigParser()
@@ -61,4 +64,7 @@ class Settings:
             cls.set(Key.YOUYOURYOU_ADDR, "YOUYOURYOU:YOUYOURYOU:654321")
             cls.set(Key.MIN_COUNT_FOR_MAX_REPLY_RATIO, 50)
             cls.set(Key.NODE_NEW_DURATION_SEC, 10)
+            cls.set(Key.NODE_REPLACEMENT_INTERVAL_MIN, 3600)
+            cls.set(Key.NODE_REPLACEMENT_INTERVAL_MAX, 5400)
+            cls.set(Key.MIN_COUNT_FOR_NODE_REPLACEMENT_INTERVAL, 20)
 Settings.init()

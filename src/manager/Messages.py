@@ -1,10 +1,10 @@
-from manager.Nodes import Nodes
-from src.typeDefined import MSG_GENE, MSG, MSGS
-from manager.DB import DB
-from src.model.Message import RootMessage, ReplyMessage, DelegateMessaege
 from threading import Lock
 from abc import ABC, abstractmethod
 
+from src.manager.Nodes import Nodes
+from src.typeDefined import MSG_GENE, MSG, MSGS
+from src.manager.DB import DB
+from src.model.Message import RootMessage, ReplyMessage, DelegateMessaege
 from src.typeDefined import MSG_GENE, MSG, MSGS
 from src.model.Message import RootMessage, ReplyMessage
 
@@ -23,7 +23,7 @@ class Messages(ABC):
         pass
     @classmethod
     @abstractmethod
-    def getMessageFromHash(cls, msgHash: str) -> MSG | None:
+    def getMessageByHash(cls, msgHash: str) -> MSG | None:
         pass
 
     @classmethod
@@ -61,7 +61,7 @@ class OthersMessages(Messages):
         with cls._messagesLock:
             return list(cls._messages.values())
     @classmethod
-    def getMessageFromHash(cls, msgHash: str) -> MSG | None:
+    def getMessageByHash(cls, msgHash: str) -> MSG | None:
         with cls._messagesLock:
             return cls._messages.get(msgHash)
     @classmethod
@@ -111,7 +111,7 @@ class MyMessages(Messages):
     def getRandomMessage(cls) -> MSG:
         return cls._sqlMsgToMsg(cls._getSqlRandMessage())
     @classmethod
-    def getMessageFromHash(cls, msgHash:str, isDelegate:bool=False) -> MSG | DelegateMessaege | None:
+    def getMessageByHash(cls, msgHash:str, isDelegate:bool=False) -> MSG | DelegateMessaege | None:
         m = DB.fetchOne("SELECT * FROM "+("delegateMessages" if isDelegate else "myMessages")+" WHERE hash = ?", (msgHash,))
         return cls._sqlMsgToMsg(m, isDelegate=isDelegate) if m else None
 
