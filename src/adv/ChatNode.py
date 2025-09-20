@@ -12,10 +12,11 @@ from src.util import msg
 from src.util import timestamp
 
 
-class AdvNode:
-    def __init__(self, node:Node):
-        self._node = node
-    def getNodes(self) -> Generator["Node", Any, list[Any] | None]:
+class ChatNode(Node):
+    @classmethod
+    def fromOrginalNode(cls, node:Node) -> "ChatNode":
+        return cls(node.getNodeInfo(), node.getUniqueColorRGB(), node.getStartTime(), node.getExpireTime())
+    def getNodes(self, limit:int=5) -> Generator["Node", Any, list[Any] | None]:
         resp = self._node.sendToAndRecv({"t":CommuType.GET_NODES, "d":{}})
         if resp.respType != CommuType.RESPONSE:
             return []
@@ -83,11 +84,11 @@ class AdvNode:
     def syncNode(self) -> bool:
         if not self._node.ping() or (Nodes.getLength() >= Settings.getInt(Key.MIN_COUNT_FOR_NODE_REPLACEMENT_INTERVAL) and self._node.getExpireTime() >= timestamp.now()):
             Nodes.unregisterNode(self._node)
-        for n in self._node.getNodes():
+        for n in self.getNodes():
             Nodes.registerNode(n)
         for _ in range(Settings.getInt(Key.MEESAGES_PER_NODE)):
             m = self.addAndGetMsg()
             if isinstance(m, ReplyMessage):
                 if m.isFromDelegate: self.addAndGetMsg(h=m.fromHash, iD=True)
-                elif m.fromNode: AdvNode(m.fromNode).addAndGetMsg(h=m.fromHash)
+                elif m.fromNode: ChatNode.fromOrginalNode(m.fromNode).addAndGetMsg(h=m.fromHash)
         return True

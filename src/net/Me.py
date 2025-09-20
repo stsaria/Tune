@@ -8,7 +8,7 @@ from src.manager.Messages import MyMessages, OthersMessages
 from src.model.Message import ReplyMessage
 from src.model.NodeInfo import NodeInfo
 from src.net.Node import Node
-from src.net.AdvNode import AdvNode
+from adv.ChatNode import ChatNode
 from src.net.Protocol import Response
 from src.net.Protocol import ResponseIdentify, CommuType
 from src.util import ed25519, nettet
@@ -115,7 +115,7 @@ class Me:
     def syncer(cls, loopDelay:int=40) -> None:
         while True:
             for n in Nodes.getNodes():
-                aN = AdvNode(n)
+                aN = ChatNode.fromOrginalNode(n)
                 Thread(target=aN.syncNode, daemon=True).start()
             msg.dumpMessages(OthersMessages)
             msg.dumpMessages(MyMessages)
@@ -125,7 +125,7 @@ class Me:
         nodes = Nodes.getNodesByRandom(limit=5)
         if len(nodes) == 0:
             return None
-        ipColonPorts = [AdvNode(n).getMyIpColonPort() for n in nodes]
+        ipColonPorts = [ChatNode.fromOrginalNode(n).getMyIpColonPort() for n in nodes]
         if not all(ipColonPorts) or not ipColonPorts[0]:
             return None
         return ipColonPorts[0]
