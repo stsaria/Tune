@@ -118,4 +118,5 @@ class _DiApi:
     pass
 
 class Api(_GlApi, _DiApi):
-    pass
+    GlobalNet = _GlApi
+    DirectNet = _DiApi
