@@ -11,7 +11,7 @@ from src.Settings import Key, Settings
 from src.defined import ENCODE
 from src.base.Protocol import CommuType
 from src.base.model.Response import Response, ResponseIdentify
-from src.util import timestamp
+from src.base.util import timestamp
 
 
 class ServerAndClient:

@@ -8,7 +8,7 @@ from src.base.model.NodeInfo import NodeInfo
 
 from src.base.Protocol import CommuType
 from src.base.model.Response import Response
-from src.util import nodeTrans, timestamp
+from src.base.util import nodeTrans, timestamp
 
 class Node:
     def __init__(self, serverAndClient:ServerAndClient, nodeInfo:NodeInfo, uniqueColorRGB:tuple[int, int, int]=None, startTime:int=None, expireTime:int=None):

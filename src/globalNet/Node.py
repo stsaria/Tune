@@ -7,9 +7,9 @@ from src.Settings import Key, Settings
 from src.globalNet.model.Message import ReplyMessage, RootMessage
 from src.base.Node import Node as OrgNode
 from src.base.Protocol import CommuType
-from src.util import ed25519
+from src.base.util import ed25519
 from globalNet.util import msg
-from src.util import timestamp
+from src.base.util import timestamp
 
 
 class Node(OrgNode):

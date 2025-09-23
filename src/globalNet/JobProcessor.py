@@ -13,7 +13,7 @@ from src.globalNet.manager.Nodes import Nodes
 from src.globalNet.Node import Node
 from src.base.manager.MyInfo import MyInfo
 from src.base.JobProcessor import JobProcessor as OrgJobProcessor
-from src.util import ed25519
+from src.base.util import ed25519
 
 
 class JobProcessor(OrgJobProcessor):

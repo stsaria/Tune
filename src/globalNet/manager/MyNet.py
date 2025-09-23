@@ -5,7 +5,7 @@ from src.base.manager.MyInfo import MyInfo
 from src.base.ServerAndClient import ServerAndClient
 from src.Settings import Key, Settings
 from src.base.model.Response import Response
-from src.util import ed25519, nettet
+from src.base.util import ed25519, nettet
 
 class MyNet:
     _v4Ip:str = "0.0.0.0"

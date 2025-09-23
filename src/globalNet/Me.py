@@ -12,9 +12,9 @@ from src.base.model.NodeInfo import NodeInfo
 from src.globalNet.Node import Node
 from src.base.Protocol import CommuType
 from src.base.model.Response import Response, ResponseIdentify
-from src.util import ed25519, nettet
+from src.base.util import ed25519, nettet
 from src.globalNet.util import msg
-from src.util import nodeTrans
+from src.base.util import nodeTrans
 
 class Me:
     @classmethod

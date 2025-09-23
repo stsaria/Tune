@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from abc import ABC, abstractmethod
-from src.util import sha256
+from src.base.util import sha256
 from src.globalNet.Node import Node
 
 """

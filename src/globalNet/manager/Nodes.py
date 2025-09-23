@@ -4,7 +4,7 @@ from src.base.manager.DB import DB
 from src.base.model.NodeInfo import NodeInfo
 from src.Settings import Key, Settings
 from src.globalNet.Node import Node
-from src.util import nodeTrans
+from src.base.util import nodeTrans
 
 NODE_TUPLE = tuple[str, str, int, str, int, int, int, int]
 

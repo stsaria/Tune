@@ -11,7 +11,7 @@ from src.globalNet.model.Message import ReplyMessage, RootMessage
 from src.globalNet.manager.Messages import MyMessages, OthersMessages
 from src.globalNet.Me import Me as GlMe
 from src.globalNet.Node import Node as GlNode
-from src.util import nodeTrans, timestamp
+from src.base.util import nodeTrans, timestamp
 from src.Settings import Key, Settings
 
 class _GlApi:

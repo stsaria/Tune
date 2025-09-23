@@ -4,7 +4,7 @@ import os
 from threading import Lock
 
 from src.defined import ENCODE, SAVED_PATH, SETTINGS_FILE_NAME, SETTINGS_SECTION_NAME
-from src.util import ed25519
+from src.base.util import ed25519
 
 class Key(Enum):
     MAX_NODES = "maxNodes"
