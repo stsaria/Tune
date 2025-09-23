@@ -1,6 +1,8 @@
 import random
 from typing import Generator, Any
 
+from src.base.ServerAndClient import ServerAndClient
+from src.base.model import NodeInfo
 from src.globalNet.manager.Nodes import Nodes
 from src.globalNet.manager.Messages import OthersMessages
 from src.Settings import Key, Settings
@@ -8,12 +10,12 @@ from src.globalNet.model.Message import ReplyMessage, RootMessage
 from src.base.Node import Node as OrgNode
 from src.base.Protocol import CommuType
 from src.base.util import ed25519
-from globalNet.util import msg
+from src.globalNet.util import msg
 from src.base.util import timestamp
 
 
 class Node(OrgNode):
-    def __init__(self, serverAndClient, nodeInfo, uniqueColorRGB = None, startTime = None, expireTime = None):
+    def __init__(self, serverAndClient:ServerAndClient, nodeInfo=NodeInfo, uniqueColorRGB:tuple[int, int, int] = None, startTime:int = None, expireTime:int = None):
         super().__init__(serverAndClient, nodeInfo)
         self._uniqueColorRGB:tuple[int, int, int] = uniqueColorRGB or tuple([random.randint(0,255) for _ in range(3)]*3)
         self._startTime:int = startTime or timestamp.now()

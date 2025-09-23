@@ -6,6 +6,7 @@ from typing import Iterable
 from src.defined import SAVED_PATH
 os.makedirs(SAVED_PATH, exist_ok=True)
 
+from src.base.manager.MyInfo import MyInfo
 from src.globalNet.manager.Nodes import Nodes as GlNodes
 from src.globalNet.model.Message import ReplyMessage, RootMessage
 from src.globalNet.manager.Messages import MyMessages, OthersMessages
@@ -117,6 +118,18 @@ class _GlApi:
 class _DiApi:
     pass
 
-class Api(_GlApi, _DiApi):
-    GlobalNet = _GlApi
-    DirectNet = _DiApi
+class Api:
+    GlobalNet:_GlApi = _GlApi
+    DirectNet:_DiApi = _DiApi
+
+    @staticmethod
+    def getMyName() -> str:
+        return MyInfo.getName()
+    @staticmethod
+    def setMyName(name:str) -> None:
+        MyInfo.setName(name)
+    
+    @staticmethod
+    def getMyPubKey() -> str:
+        return MyInfo.getPubKey()
+    
