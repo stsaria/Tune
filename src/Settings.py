@@ -4,6 +4,7 @@ import os
 from threading import Lock
 
 from src.defined import ENCODE, SAVED_PATH, SETTINGS_FILE_NAME, SETTINGS_SECTION_NAME
+from src.util import ed25519
 
 class Key(Enum):
     MAX_NODES = "maxNodes"
@@ -23,6 +24,7 @@ class Key(Enum):
     NODE_REPLACEMENT_INTERVAL_MIN = "nodeReplacementIntervalMin"
     NODE_REPLACEMENT_INTERVAL_MAX = "nodeReplacementIntervalMax"
     MIN_COUNT_FOR_NODE_REPLACEMENT_INTERVAL = "minCountForNodeReplacementInterval"
+    PRIVATE_KEY = "privateKey"
 
 class Settings:
     _conf:ConfigParser = ConfigParser()
@@ -67,4 +69,5 @@ class Settings:
             cls.set(Key.NODE_REPLACEMENT_INTERVAL_MIN, 3600)
             cls.set(Key.NODE_REPLACEMENT_INTERVAL_MAX, 5400)
             cls.set(Key.MIN_COUNT_FOR_NODE_REPLACEMENT_INTERVAL, 20)
+            cls.set(Key.PRIVATE_KEY, ed25519.generate())
 Settings.init()

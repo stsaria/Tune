@@ -6,16 +6,15 @@ from typing import Iterable
 from src.defined import SAVED_PATH
 os.makedirs(SAVED_PATH, exist_ok=True)
 
-from src.manager.Nodes import Nodes
-from src.model.Message import ReplyMessage, RootMessage
-from src.manager.Messages import MyMessages, OthersMessages
-from src.net.Me import Me
-from src.net.Node import Node
+from src.globalNet.manager.Nodes import Nodes as GlNodes
+from src.globalNet.model.Message import ReplyMessage, RootMessage
+from src.globalNet.manager.Messages import MyMessages, OthersMessages
+from src.globalNet.Me import Me as GlMe
+from src.globalNet.Node import Node as GlNode
 from src.util import nodeTrans, timestamp
-from src.typeDefined import MSG
 from src.Settings import Key, Settings
 
-class Api:
+class _GlApi:
     _started:bool = False
     _startedLock:Lock = Lock()
     # Core
@@ -25,31 +24,31 @@ class Api:
         with Api._startedLock:
             if Api._started: return
             Api._started = True
-            Thread(target=Me.serve, daemon=True).start()
-            Thread(target=Me.syncer, daemon=True).start()
+            Thread(target=GlMe.serve, daemon=True).start()
+            Thread(target=GlMe.syncer, daemon=True).start()
     
     # Nodes
     @staticmethod
-    def getAllNodes() -> list[Node]:
+    def getAllNodes() -> list[GlNode]:
         """Get all known nodes."""
-        return Nodes.getNodes()
+        return GlNodes.getNodes()
     @staticmethod
     def getAllNodeTraffics() -> dict[str:int]:
         """Get traffic in bytes for all known nodes."""
-        return Nodes.getNodesTraffics()
+        return GlNodes.getNodesTraffics()
     # Node
     @staticmethod
     def registerNodeById(id:str) -> bool:
         """Register a new node and return its success status."""
-        return Nodes.registerNode(Node.nodeFromIAndP(nodeTrans.nodeIAndPFromId(id)))
+        return GlNodes.registerNode(GlNode.nodeFromIAndP(nodeTrans.nodeIAndPFromId(id)))
     @staticmethod
-    def getTrafficByNode(node:Node) -> int:
+    def getTrafficByNode(node:GlNode) -> int:
         """Get traffic in bytes for a node."""
-        return Nodes.getNodeTraffic(node.getNodeInfo().ip)
+        return GlNodes.getNodeTraffic(node.getNodeInfo().ip)
     @staticmethod
     def banNodeByIp(ip:str) -> None:
         """Ban a node by IP address."""
-        Nodes.ban(ip)
+        GlNodes.ban(ip)
         OthersMessages.deleteMessagesFromIp(ip)
     @staticmethod
     def banNodeById(nodeId:str) -> None:
@@ -62,7 +61,7 @@ class Api:
     @staticmethod
     def unbanNodeByIp(ip:str) -> None:
         """Unban a node by IP address."""
-        Nodes.unban(ip)
+        GlNodes.unban(ip)
     @staticmethod
     def unbanNodeById(nodeId:str) -> None:
         """Unban a node by Node ID."""
@@ -73,7 +72,7 @@ class Api:
     
     # Messages
     @staticmethod
-    def getAllMessages() -> Iterable[MSG]:
+    def getAllMessages() -> Iterable[RootMessage | ReplyMessage]:
         """Get all messages.(include my messages)"""
         return chain(OthersMessages.getMessages(), MyMessages.getMessages())
     @staticmethod
@@ -109,9 +108,14 @@ class Api:
         elif MyMessages.getMessageByHash(rootMsg.hash()): return 3
         if "y" in Settings.get(Key.COPY_REPLY_FROM_MSGS).lower():
             MyMessages.addDelegateMessage(rootMsg)
-            fromNode = Nodes.getNodeOrGenerateByIAndPOrPubKey(Settings.get(Key.IMYME_ADDR), rootMsg.author.getNodeInfo().pubKey)
+            fromNode = GlNodes.getNodeOrGenerateByIAndPOrPubKey(Settings.get(Key.IMYME_ADDR), rootMsg.author.getNodeInfo().pubKey)
         else:
             fromNode = rootMsg.author
         MyMessages.addMessage(ReplyMessage(content=content, timestamp=timestamp.now(), fromHash=rootMsg.hash(), fromNode=fromNode))
         return 0
-    
+
+class _DiApi:
+    pass
+
+class Api(_GlApi, _DiApi):
+    pass
