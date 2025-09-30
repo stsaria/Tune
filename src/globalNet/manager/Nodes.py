@@ -1,17 +1,15 @@
 import random
 
-from src.base.manager.DB import DB
-from src.base.model.NodeInfo import NodeInfo
+from src.allNet.manager.DB import DB
+from src.allNet.model.NodeInfo import NodeInfo
 from src.Settings import Key, Settings
 from src.globalNet.Node import Node
-from src.base.util import nodeTrans
+from src.allNet.util import nodeTrans
+from src.defined import GLOBAL_NET_NAME
 
 NODE_TUPLE = tuple[str, str, int, str, int, int, int, int]
 
 class Nodes:
-    @classmethod
-    def generateNodeByNodeInfo(cls, nodeInfo:NodeInfo, uniqueColorRGB:tuple[int, int, int], startTime:int, expireTime:int) -> Node:
-        return Node(nodeInfo, uniqueColorRGB=uniqueColorRGB, startTime=startTime, expireTime=expireTime)
     @classmethod
     def registerNode(cls, node:Node) -> None:
         if cls.getLength() >= Settings.getInt(Key.MAX_NODES): return
@@ -36,7 +34,7 @@ class Nodes:
     def getNodeById(cls, nodeId:str) -> Node | None:
         try:
             return cls.getNodeByIpAndPort(*nodeTrans.separateNodeIAndP(nodeId))
-        except:
+        except Exception:
             return None
     
     @classmethod
@@ -80,8 +78,8 @@ class Nodes:
         if not n:
             return None
         try:
-            return Node(NodeInfo(n[1], n[2], n[3], n[0]), (n[4], n[5], n[6]), n[7], n[8])
-        except:
+            return Node(GLOBAL_NET_NAME, NodeInfo(n[1], n[2], n[3], n[0]), (n[4], n[5], n[6]), n[7], n[8])
+        except Exception:
             return None
 
     DB.execAndCommit("""

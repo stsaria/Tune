@@ -1,3 +1,8 @@
 cryptography
 flask
 duckdb
+opuslib
+pyogg
+sounddevice
+numpy
+PyCryptodome

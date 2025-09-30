@@ -2,7 +2,7 @@ from threading import Lock
 from abc import ABC, abstractmethod
 
 from src.globalNet.manager.Nodes import Nodes
-from src.base.manager.DB import DB
+from src.allNet.manager.DB import DB
 from src.globalNet.model.Message import RootMessage, ReplyMessage, DelegateMessaege
 
 

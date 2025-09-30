@@ -1,7 +1,12 @@
+"""Message モジュール
+
+自動生成ドキュメント用 docstring。
+"""
+
 from dataclasses import dataclass
 
 from abc import ABC, abstractmethod
-from src.base.util import sha256
+from src.allNet.util import sha256
 from src.globalNet.Node import Node
 
 """

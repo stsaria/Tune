@@ -1,19 +1,19 @@
 import json
 
-from src.base.ExecOp import ExecOp
-from src.base.model import Response
-from src.base.model.Response import ResponseIdentify
-from src.base.Protocol import CommuType
+from src.allNet.ExecOp import ExecOp
+from src.allNet.model import Response
+from src.allNet.model.Response import ResponseIdentify
+from src.allNet.Protocol import CommuType
 from src.Settings import Key, Settings
 from src.globalNet.model.Message import ReplyMessage
 from src.globalNet.manager.Messages import MyMessages
-from src.base.model.NodeInfo import NodeInfo
+from src.allNet.model.NodeInfo import NodeInfo
 from src.defined import ENCODE
 from src.globalNet.manager.Nodes import Nodes
 from src.globalNet.Node import Node
-from src.base.manager.MyInfo import MyInfo
-from src.base.JobProcessor import JobProcessor as OrgJobProcessor
-from src.base.util import ed25519
+from src.allNet.manager.MyInfo import MyInfo
+from src.allNet.JobProcessor import JobProcessor as OrgJobProcessor
+from src.allNet.util import ed25519
 
 
 class JobProcessor(OrgJobProcessor):
@@ -42,7 +42,7 @@ class JobProcessor(OrgJobProcessor):
         dgMessage = MyMessages.getMessageByHash(msgHash, isDelegate=True)
         return {"c":dgMessage.content, "ts":dgMessage.timestamp, "hash":dgMessage.hash(), "sig": dgMessage.sig, "dgPub": dgMessage.delegatePub}
     @classmethod
-    def _allotTaskFromReq(self, data:dict, addr:tuple[str, int]) -> tuple[ExecOp, any] | None:
+    def _allotTaskFromReq(self, data:dict, addr:tuple[str, int]) -> tuple[ExecOp, (dict | tuple)] | None:
         r:dict = {"t":CommuType.RESPONSE.value, "d":{}, "id":data["id"]}
         match data["t"]:
             case CommuType.HELLO.value:
@@ -60,7 +60,7 @@ class JobProcessor(OrgJobProcessor):
             case CommuType.PING.value:
                 pass
             case CommuType.GET_MY_IP_AND_PORT.value:
-                r["d"] = {"ipColonPort":f"{addr[0]}:{addr[1]}", "sig":ed25519.sign(f"{addr[0]}:{addr[1]}", self._pivKey)}
+                r["d"] = {"ipColonPort":f"{addr[0]}:{addr[1]}", "sig":ed25519.sign(f"{addr[0]}:{addr[1]}", MyInfo.getPivKey())}
             case CommuType.GET_MESSAGE.value:
                 r["d"] = self.__getMessage(addr, data["d"]["hash"])
             case CommuType.GET_DELEGATE_MESSAGE.value:
@@ -68,7 +68,8 @@ class JobProcessor(OrgJobProcessor):
             case _:
                 r["t"] = CommuType.ERR_I_DONT_KNOW_YOUR_REQ_TYPE.value
         return ExecOp.SEND, r
-    def recved(self, addr:tuple[int, int], data:bytes) -> ExecOp | dict:
+    @classmethod
+    def recved(self, addr:tuple[int, int], data:bytes) -> tuple[ExecOp, dict]:
         if Nodes.isBanned(addr[0]):
             raise
         Nodes.updateNodeTraffic(addr[0], data.__sizeof__())
@@ -77,7 +78,4 @@ class JobProcessor(OrgJobProcessor):
         for k, v in {"t":int, "d":dict, "id":str}.items():
             if not isinstance(j[k], v):
                 raise
-        r = self._allotTaskFromReq(j, addr)
-        if not r: raise
-        op, c = r
-        return op, c
+        return self._allotTaskFromReq(j, addr)

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from src.base.Protocol import CommuType
-from src.base.util import sha256
+from src.allNet.Protocol import CommuType
+from src.allNet.util import sha256
 
 @dataclass
 class Response:

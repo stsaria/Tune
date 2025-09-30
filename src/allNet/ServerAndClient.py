@@ -1,18 +1,19 @@
+import errno
 import json
+import platform
 from threading import Lock
 import time
 from socket import IPPROTO_IPV6, IPV6_V6ONLY, SO_REUSEADDR, SOL_SOCKET, socket as Socket
 from socket import AF_INET, SOCK_DGRAM, AF_INET6
 import uuid
 
-from src.base.ExecOp  import ExecOp
-from src.base.JobProcessor import JobProcessor
+from src.allNet.ExecOp  import ExecOp
+from src.allNet.JobProcessor import JobProcessor
 from src.Settings import Key, Settings
-from src.defined import ENCODE
-from src.base.Protocol import CommuType
-from src.base.model.Response import Response, ResponseIdentify
-from src.base.util import timestamp
-
+from src.defined import ENCODE, WSAENOTSOCK
+from src.allNet.Protocol import CommuType
+from src.allNet.model.Response import Response, ResponseIdentify
+from src.allNet.util import timestamp
 
 class ServerAndClient:
     def __init__(self, ipVersion:str, host:str, port:str, jobProcessor:JobProcessor) -> None:
@@ -51,7 +52,7 @@ class ServerAndClient:
                     return resp
                 time.sleep(0.03)
             return Response(CommuType.LOC_TIME_OUTED, {})
-        except:
+        except Exception:
             return Response(CommuType.LOC_ERROR, {})
     def serve(self) -> None:
         while True:
@@ -63,7 +64,12 @@ class ServerAndClient:
                         self._addResp(c[0], c[1])
                     case ExecOp.SEND:
                         self.sendTo(c, a[0], a[1])
-            except:
+            except OSError as e:
+                if platform.system() == "Windows" and e.winerror == WSAENOTSOCK:
+                    return
+                elif e.errno == errno.EBADF:
+                    return
+            except Exception:
                 pass
     def close(self) -> None:
         self._sock.close()

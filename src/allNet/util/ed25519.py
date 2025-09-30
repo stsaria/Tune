@@ -15,7 +15,7 @@ def verify(text:str, sig:str, pubKeyS:str) -> bool:
     try:
         pubKey.verify(bytes.fromhex(sig), text.encode(ENCODE))
         return True
-    except InvalidSignature:
+    except (InvalidSignature, ValueError, TypeError):
         return False
 
 def getPubKeyByPivKey(pivKeyS:str):

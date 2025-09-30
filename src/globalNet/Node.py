@@ -1,47 +1,43 @@
 import random
 from typing import Generator, Any
 
-from src.base.ServerAndClient import ServerAndClient
-from src.base.model import NodeInfo
-from src.globalNet.manager.Nodes import Nodes
+from src.allNet.model import NodeInfo
 from src.globalNet.manager.Messages import OthersMessages
 from src.Settings import Key, Settings
 from src.globalNet.model.Message import ReplyMessage, RootMessage
-from src.base.Node import Node as OrgNode
-from src.base.Protocol import CommuType
-from src.base.util import ed25519
+from src.allNet.Node import Node as OrgNode
+from src.allNet.Protocol import CommuType
+from src.allNet.util import ed25519
 from src.globalNet.util import msg
-from src.base.util import timestamp
+from src.allNet.util import timestamp
 
 
 class Node(OrgNode):
-    def __init__(self, serverAndClient:ServerAndClient, nodeInfo=NodeInfo, uniqueColorRGB:tuple[int, int, int] = None, startTime:int = None, expireTime:int = None):
-        super().__init__(serverAndClient, nodeInfo)
+    def __init__(self, netName:str, nodeInfo=NodeInfo, uniqueColorRGB:tuple[int, int, int] = None, startTime:int = None, expireTime:int = None):
+        super().__init__(netName, nodeInfo)
         self._uniqueColorRGB:tuple[int, int, int] = uniqueColorRGB or tuple([random.randint(0,255) for _ in range(3)]*3)
         self._startTime:int = startTime or timestamp.now()
         self._expireTime:int = expireTime or startTime+random.randint(Settings.getInt(Key.NODE_REPLACEMENT_INTERVAL_MIN), Settings.getInt(Key.NODE_REPLACEMENT_INTERVAL_MAX))
-    @classmethod
-    def fromOrginalNode(cls, node:OrgNode) -> "Node":
-        return cls(node.getNodeInfo(), node.getUniqueColorRGB(), node.getStartTime(), node.getExpireTime())
     def getNodes(self, limit:int=5) -> Generator["Node", Any, list[Any] | None]:
-        resp = self.sendToAndRecv({"t":CommuType.GET_NODES, "d":{}})
+        resp = self.sendToAndRecv(CommuType.GET_NODES, {"limit":limit})
         if resp.respType != CommuType.RESPONSE:
             return []
         for nIAndP in resp.mainData.get("nodes", [])[0:limit]:
             try:
-                n = Node.nodeFromIAndP(nIAndP)
+                n = Node.nodeByNetNameAndIAndP(nIAndP)
                 if not n: raise
                 yield n
-            except:
+            except Exception:
                 pass
     def getMessage(self, messageHash:str=None, isDelegate:bool=False) -> ReplyMessage | RootMessage | None:
+        from src.globalNet.manager.Nodes import Nodes
         if messageHash:
             req = {"t": CommuType.GET_MESSAGE, "d":{"hash":messageHash}}
         elif messageHash and isDelegate:
             req = {"t": CommuType.GET_DELEGATE_MESSAGE, "d":{"hash":messageHash}}
         else:
             req = {"t": CommuType.GET_RAND_MESSAGE, "d":{}}
-        resp = self.sendToAndRecv(req)
+        resp = self.sendToAndRecvDirect(req)
         if resp.respType != CommuType.RESPONSE:
             return None
         mData = resp.mainData
@@ -58,7 +54,7 @@ class Node(OrgNode):
                 if mData["from"] == Settings.get(Key.YOUYOURYOU_ADDR):
                     fromNode = None
                 elif not fromNode:
-                    n = Node.nodeFromIAndP(mData["from"])
+                    n = Node.nodeByNetNameAndIAndP(mData["from"])
                     if not n.hello():
                         return None
                     Nodes.registerNode(n)
@@ -71,7 +67,7 @@ class Node(OrgNode):
             if not ed25519.verify(message.hash(), mData["sig"], (mData["dgPub"] if isDelegate else self.getNodeInfo().pubKey)):
                 return None
             return message
-        except:
+        except Exception:
             return None
     def getMyIpColonPort(self) -> str | None:
         resp = self.sendToAndRecv({"t":CommuType.GET_MY_IP_AND_PORT, "d":{}})
@@ -88,6 +84,7 @@ class Node(OrgNode):
         OthersMessages.addMessage(m)
         return m
     def syncNode(self) -> bool:
+        from src.globalNet.manager.Nodes import Nodes
         if not self.ping() or (Nodes.getLength() >= Settings.getInt(Key.MIN_COUNT_FOR_NODE_REPLACEMENT_INTERVAL) and self.getExpireTime() >= timestamp.now()):
             Nodes.unregisterNode(self)
         for n in self.getNodes():
@@ -96,7 +93,7 @@ class Node(OrgNode):
             m = self.addAndGetMsg()
             if isinstance(m, ReplyMessage):
                 if m.isFromDelegate: self.addAndGetMsg(h=m.fromHash, iD=True)
-                elif m.fromNode: Node.fromOrginalNode(m.fromNode).addAndGetMsg(h=m.fromHash)
+                elif m.fromNode: Node.getNodeFromAll(m.fromNode).addAndGetMsg(h=m.fromHash)
         return True
     def updateUniqueColorRGB(self, r:int, g:int, b:int) -> None:
         self._uniqueColorRGB = (int(r), int(g), int(b))

@@ -3,7 +3,7 @@ import time
 from src.globalNet.model.Message import ReplyMessage, RootMessage
 from src.globalNet.manager.Messages import MyMessages, OthersMessages
 from src.Settings import Settings, Key
-from src.base.util import timestamp
+from src.allNet.util import timestamp
 
 def isNeedDumpMessage(m:ReplyMessage | RootMessage):
     expirationSecS = Settings.getInt(Key.EXPIRATION_SECONDS)

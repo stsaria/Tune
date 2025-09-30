@@ -5,13 +5,13 @@ from typing import Optional
 
 from src.defined import ENCODE
 
-def nodeIAndPFromId(nodesId:str) -> Optional[str]:
+def nodeIAndPById(nodesId:str) -> Optional[str]:
     try:
         idJS = base64.b64decode(nodesId).decode(ENCODE)
         idJ = json.loads(idJS)
         node = idJ["node"]
         return f"{node[0]}:{node[1]}"
-    except:
+    except Exception:
         return None
 
 def idFromNodeIAndP(nodeIAndP:str) -> str:
