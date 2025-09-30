@@ -1,8 +1,3 @@
-"""Api モジュール
-
-自動生成ドキュメント用 docstring。
-"""
-
 import os
 from itertools import chain
 from threading import Lock, Thread

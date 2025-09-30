@@ -1,8 +1,3 @@
-"""Settings モジュール
-
-自動生成ドキュメント用 docstring。
-"""
-
 from configparser import ConfigParser
 from enum import Enum
 import os

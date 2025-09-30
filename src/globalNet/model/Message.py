@@ -1,8 +1,3 @@
-"""Message モジュール
-
-自動生成ドキュメント用 docstring。
-"""
-
 from dataclasses import dataclass
 
 from abc import ABC, abstractmethod
